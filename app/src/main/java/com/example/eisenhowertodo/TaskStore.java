@@ -22,9 +22,11 @@ final class TaskStore {
     private static final String KEY_SYNC_INITIALIZED = "sync_initialized";
 
     private final SharedPreferences preferences;
+    private final Context context;
 
     TaskStore(Context context) {
-        preferences = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE);
+        this.context = context.getApplicationContext();
+        preferences = this.context.getSharedPreferences(PREFS, Context.MODE_PRIVATE);
     }
 
     synchronized List<Task> all() {
@@ -273,6 +275,7 @@ final class TaskStore {
         });
         preferences.edit().putString(KEY_TASKS, taskArray(merged).toString())
                 .putString(KEY_PENDING, outstanding.toString()).apply();
+        QuickAddWidgetProvider.refresh(context);
     }
 
     private Task readTask(JSONObject item, int index) throws JSONException {
@@ -339,5 +342,6 @@ final class TaskStore {
         }
         preferences.edit().putString(KEY_TASKS, taskArray(tasks).toString())
                 .putString(KEY_PENDING, operations.toString()).apply();
+        QuickAddWidgetProvider.refresh(context);
     }
 }

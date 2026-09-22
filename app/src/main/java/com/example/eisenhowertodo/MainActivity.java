@@ -1,6 +1,7 @@
 package com.example.eisenhowertodo;
 
 import android.app.Activity;
+import android.content.Context;
 import android.content.ClipData;
 import android.content.ClipDescription;
 import android.content.Intent;
@@ -16,6 +17,7 @@ import android.view.View;
 import android.view.Window;
 import android.view.WindowManager;
 import android.view.inputmethod.EditorInfo;
+import android.view.inputmethod.InputMethodManager;
 import android.widget.Button;
 import android.widget.CheckBox;
 import android.widget.EditText;
@@ -31,6 +33,7 @@ import android.widget.Toast;
 import java.util.List;
 
 public class MainActivity extends Activity {
+    static final String EXTRA_FOCUS_INPUT = "focus_input_from_widget";
     static final String[] TITLES = {"立即做", "安排做", "委托做", "尽量不做"};
     static final int[] COLORS = ThemePalette.QUADRANT;
     private static final int MAX_VISIBLE_TASKS = 4;
@@ -52,6 +55,25 @@ public class MainActivity extends Activity {
         store = new TaskStore(this);
         setContentView(createContent());
         renderTasks();
+        focusInputIfRequested(getIntent());
+    }
+
+    @Override
+    protected void onNewIntent(Intent intent) {
+        super.onNewIntent(intent);
+        setIntent(intent);
+        focusInputIfRequested(intent);
+    }
+
+    private void focusInputIfRequested(Intent intent) {
+        if (intent == null || !intent.getBooleanExtra(EXTRA_FOCUS_INPUT, false) || input == null) return;
+        intent.removeExtra(EXTRA_FOCUS_INPUT);
+        input.requestFocus();
+        input.postDelayed(() -> {
+            InputMethodManager keyboard =
+                    (InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);
+            keyboard.showSoftInput(input, InputMethodManager.SHOW_IMPLICIT);
+        }, 180);
     }
 
     @Override
