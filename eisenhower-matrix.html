@@ -1,0 +1,487 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Eisenhower Matrix Todo</title>
+<style>
+  :root {
+    --q1: #e74c3c;
+    --q1-bg: #fdf0ef;
+    --q2: #2ecc71;
+    --q2-bg: #edfaf3;
+    --q3: #3498db;
+    --q3-bg: #ebf5fb;
+    --q4: #95a5a6;
+    --q4-bg: #f4f6f6;
+    --bg: #f8f9fa;
+    --card: #ffffff;
+    --text: #2c3e50;
+    --muted: #7f8c8d;
+    --radius: 10px;
+    --shadow: 0 2px 10px rgba(0,0,0,.06);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    padding: 24px 16px;
+  }
+
+  .container { max-width: 1100px; margin: 0 auto; }
+
+  /* ---- Header ---- */
+  .header {
+    text-align: center;
+    margin-bottom: 28px;
+  }
+  .header h1 { font-size: 2rem; font-weight: 700; }
+  .header p  { color: var(--muted); margin-top: 4px; }
+
+  /* ---- Add bar ---- */
+  .add-bar {
+    display: flex;
+    gap: 10px;
+    background: var(--card);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 12px 16px;
+    margin-bottom: 24px;
+    flex-wrap: wrap;
+  }
+  .add-bar input[type="text"] {
+    flex: 1 1 200px;
+    border: 2px solid #e0e0e0;
+    border-radius: 8px;
+    padding: 10px 14px;
+    font-size: .95rem;
+    outline: none;
+    transition: border .2s;
+  }
+  .add-bar input[type="text"]:focus { border-color: #3498db; }
+  .add-bar select {
+    border: 2px solid #e0e0e0;
+    border-radius: 8px;
+    padding: 10px 12px;
+    font-size: .9rem;
+    background: #fff;
+    cursor: pointer;
+    outline: none;
+  }
+  .add-bar button {
+    background: #2c3e50;
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    padding: 10px 22px;
+    font-size: .95rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background .2s;
+    white-space: nowrap;
+  }
+  .add-bar button:hover { background: #1a252f; }
+
+  /* ---- Matrix grid ---- */
+  .matrix {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: auto auto;
+    gap: 16px;
+  }
+  @media (max-width: 700px) {
+    .matrix { grid-template-columns: 1fr; }
+  }
+
+  /* ---- Quadrant card ---- */
+  .quadrant {
+    background: var(--card);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+  .quadrant-header {
+    padding: 14px 18px;
+    font-weight: 700;
+    font-size: .9rem;
+    color: #fff;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .q1 .quadrant-header { background: var(--q1); }
+  .q2 .quadrant-header { background: var(--q2); }
+  .q3 .quadrant-header { background: var(--q3); }
+  .q4 .quadrant-header { background: var(--q4); }
+
+  .badge {
+    background: rgba(255,255,255,.3);
+    border-radius: 20px;
+    padding: 2px 10px;
+    font-size: .78rem;
+  }
+  .quadrant-body {
+    flex: 1;
+    min-height: 160px;
+    padding: 8px;
+    list-style: none;
+  }
+  .quadrant-body:empty::after {
+    content: "Drop items here";
+    display: block;
+    text-align: center;
+    color: #ccc;
+    font-style: italic;
+    padding: 32px 0;
+  }
+
+  /* ---- Todo item ---- */
+  .todo {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 12px;
+    border-radius: 8px;
+    margin: 4px 0;
+    cursor: grab;
+    transition: background .15s;
+  }
+  .todo:hover { background: #f0f0f0; }
+  .todo.dragging { opacity: .4; }
+  .todo.done .todo-text { text-decoration: line-through; color: #b0b0b0; }
+
+  .todo-check {
+    width: 20px; height: 20px;
+    border: 2px solid #ccc;
+    border-radius: 50%;
+    cursor: pointer;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all .2s;
+  }
+  .todo-check:hover { border-color: #2ecc71; }
+  .todo.done .todo-check {
+    background: #2ecc71;
+    border-color: #2ecc71;
+  }
+  .todo.done .todo-check::after {
+    content: "✓";
+    color: #fff;
+    font-size: .7rem;
+    font-weight: 700;
+  }
+
+  .todo-text { flex: 1; font-size: .9rem; word-break: break-word; }
+
+  /* ---- Move dropdown (on each task) ---- */
+  .todo-move {
+    font-size: .73rem;
+    padding: 4px 6px;
+    border-radius: 6px;
+    border: 1.5px solid #ddd;
+    background: #fff;
+    cursor: pointer;
+    outline: none;
+    flex-shrink: 0;
+    transition: border-color .2s, box-shadow .2s;
+    max-width: 95px;
+    font-weight: 500;
+  }
+  .todo-move:focus { border-color: #3498db; box-shadow: 0 0 0 2px rgba(52,152,219,.2); }
+  .todo-move.opt-q1 { border-color: var(--q1); color: var(--q1); }
+  .todo-move.opt-q2 { border-color: var(--q2); color: var(--q2); }
+  .todo-move.opt-q3 { border-color: var(--q3); color: var(--q3); }
+  .todo-move.opt-q4 { border-color: var(--q4); color: var(--q4); }
+
+  .todo-del {
+    background: none;
+    border: none;
+    color: #ccc;
+    cursor: pointer;
+    font-size: 1.1rem;
+    padding: 0 4px;
+    transition: color .2s;
+    flex-shrink: 0;
+  }
+  .todo-del:hover { color: #e74c3c; }
+
+  /* ---- Footer ---- */
+  .footer {
+    text-align: center;
+    margin-top: 24px;
+    color: var(--muted);
+    font-size: .85rem;
+  }
+  .footer button {
+    background: none;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    padding: 6px 16px;
+    cursor: pointer;
+    color: var(--muted);
+    font-size: .8rem;
+    margin-left: 8px;
+    transition: all .2s;
+  }
+  .footer button:hover { border-color: #e74c3c; color: #e74c3c; }
+
+  /* ---- Drag-over highlight ---- */
+  .quadrant-body.drag-over { background: #eef7ff; }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <div class="header">
+    <h1>📋 Eisenhower Matrix</h1>
+    <p>Prioritise your tasks by urgency &amp; importance</p>
+  </div>
+
+  <!-- Add new task -->
+  <div class="add-bar">
+    <input type="text" id="taskInput" placeholder="What needs to be done?" maxlength="200">
+    <select id="quadrantSelect">
+      <option value="q1">🔴 Do First</option>
+      <option value="q2">🟢 Schedule</option>
+      <option value="q3">🔵 Delegate</option>
+      <option value="q4">⚪ Eliminate</option>
+    </select>
+    <button id="addBtn">+ Add Task</button>
+  </div>
+
+  <!-- Matrix -->
+  <div class="matrix">
+
+    <!-- Q1: Urgent + Important -->
+    <div class="quadrant q1">
+      <div class="quadrant-header">
+        <span>🔴 Do First</span>
+        <span class="badge">Urgent &amp; Important</span>
+      </div>
+      <ul class="quadrant-body" id="q1" data-q="q1"></ul>
+    </div>
+
+    <!-- Q2: Not Urgent + Important -->
+    <div class="quadrant q2">
+      <div class="quadrant-header">
+        <span>🟢 Schedule</span>
+        <span class="badge">Important, Not Urgent</span>
+      </div>
+      <ul class="quadrant-body" id="q2" data-q="q2"></ul>
+    </div>
+
+    <!-- Q3: Urgent + Not Important -->
+    <div class="quadrant q3">
+      <div class="quadrant-header">
+        <span>🔵 Delegate</span>
+        <span class="badge">Urgent, Not Important</span>
+      </div>
+      <ul class="quadrant-body" id="q3" data-q="q3"></ul>
+    </div>
+
+    <!-- Q4: Not Urgent + Not Important -->
+    <div class="quadrant q4">
+      <div class="quadrant-header">
+        <span>⚪ Eliminate</span>
+        <span class="badge">Not Urgent &amp; Not Important</span>
+      </div>
+      <ul class="quadrant-body" id="q4" data-q="q4"></ul>
+    </div>
+
+  </div>
+
+  <div class="footer">
+    <span id="taskCount">0 tasks</span>
+    <button id="clearDone">Clear completed</button>
+  </div>
+
+</div>
+
+<script>
+(function () {
+  const STORAGE_KEY = 'eisenhower-todos';
+
+  const Q_LABELS = { q1: '🔴 Do First', q2: '🟢 Schedule', q3: '🔵 Delegate', q4: '⚪ Eliminate' };
+  const Q_CLASS  = { q1: 'opt-q1',   q2: 'opt-q2',    q3: 'opt-q3',    q4: 'opt-q4' };
+
+  // ---- State ----
+  let todos = load();
+
+  // ---- DOM refs ----
+  const taskInput    = document.getElementById('taskInput');
+  const quadrantSel  = document.getElementById('quadrantSelect');
+  const addBtn       = document.getElementById('addBtn');
+  const clearBtn     = document.getElementById('clearDone');
+  const taskCountEl  = document.getElementById('taskCount');
+  const bodies       = document.querySelectorAll('.quadrant-body');
+
+  // ---- Persistence ----
+  function load() {
+    try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || []; }
+    catch { return []; }
+  }
+  function save() { localStorage.setItem(STORAGE_KEY, JSON.stringify(todos)); }
+
+  // ---- Render one item ----
+  function createTodoElement(t) {
+    const li = document.createElement('li');
+    li.className = 'todo' + (t.done ? ' done' : '');
+    li.draggable = true;
+    li.dataset.id = t.id;
+
+    // Check circle
+    const check = document.createElement('span');
+    check.className = 'todo-check';
+    check.title = t.done ? 'Mark undone' : 'Mark done';
+
+    // Text
+    const text = document.createElement('span');
+    text.className = 'todo-text';
+    text.textContent = t.text;
+
+    // Move dropdown — allows reassigning quadrant
+    const move = document.createElement('select');
+    move.className = 'todo-move ' + (Q_CLASS[t.q] || '');
+    move.title = 'Move to another quadrant';
+    move.addEventListener('click', function (ev) { ev.stopPropagation(); });
+    move.addEventListener('change', function () {
+      moveTodo(t.id, move.value);
+    });
+    for (const [val, label] of Object.entries(Q_LABELS)) {
+      const opt = document.createElement('option');
+      opt.value = val;
+      opt.textContent = label;
+      if (val === t.q) opt.selected = true;
+      move.appendChild(opt);
+    }
+
+    // Delete button
+    const del = document.createElement('button');
+    del.className = 'todo-del';
+    del.innerHTML = '&times;';
+    del.title = 'Delete';
+
+    li.append(check, text, move, del);
+    return li;
+  }
+
+  // ---- Render all ----
+  function render() {
+    ['q1','q2','q3','q4'].forEach(q => {
+      const ul = document.getElementById(q);
+      ul.innerHTML = '';
+      todos.filter(t => t.q === q).forEach(t => {
+        ul.appendChild(createTodoElement(t));
+      });
+    });
+    updateCount();
+  }
+
+  function updateCount() {
+    const total = todos.length;
+    const done  = todos.filter(t => t.done).length;
+    taskCountEl.textContent = `${total} task${total !== 1 ? 's' : ''} · ${done} done`;
+  }
+
+  // ---- Actions ----
+  function addTodo() {
+    const text = taskInput.value.trim();
+    if (!text) return;
+    todos.push({
+      id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+      text,
+      q: quadrantSel.value,
+      done: false,
+    });
+    taskInput.value = '';
+    save();
+    render();
+  }
+
+  function toggleDone(id) {
+    const t = todos.find(t => t.id === id);
+    if (t) { t.done = !t.done; save(); render(); }
+  }
+
+  function deleteTodo(id) {
+    todos = todos.filter(t => t.id !== id);
+    save();
+    render();
+  }
+
+  function moveTodo(id, toQ) {
+    const t = todos.find(t => t.id === id);
+    if (t) { t.q = toQ; save(); render(); }
+  }
+
+  function clearDone() {
+    todos = todos.filter(t => !t.done);
+    save();
+    render();
+  }
+
+  // ---- Event delegation ----
+  document.addEventListener('click', function (e) {
+    const li = e.target.closest('.todo');
+    if (!li) return;
+    const id = li.dataset.id;
+
+    if (e.target.closest('.todo-check')) {
+      toggleDone(id);
+    } else if (e.target.closest('.todo-del')) {
+      deleteTodo(id);
+    }
+    // dropdown clicks are handled by change event above
+  });
+
+  addBtn.addEventListener('click', addTodo);
+  taskInput.addEventListener('keydown', e => { if (e.key === 'Enter') addTodo(); });
+  clearBtn.addEventListener('click', clearDone);
+
+  // ---- Drag & Drop ----
+  document.addEventListener('dragstart', function (e) {
+    const li = e.target.closest('.todo');
+    if (!li) return;
+    li.classList.add('dragging');
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', li.dataset.id);
+  });
+
+  document.addEventListener('dragend', function (e) {
+    const li = e.target.closest('.todo');
+    if (li) li.classList.remove('dragging');
+    bodies.forEach(b => b.classList.remove('drag-over'));
+  });
+
+  bodies.forEach(body => {
+    body.addEventListener('dragover', function (e) {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+      body.classList.add('drag-over');
+    });
+    body.addEventListener('dragleave', function () {
+      body.classList.remove('drag-over');
+    });
+    body.addEventListener('drop', function (e) {
+      e.preventDefault();
+      body.classList.remove('drag-over');
+      const id = e.dataTransfer.getData('text/plain');
+      const toQ = body.dataset.q;
+      if (id && toQ) moveTodo(id, toQ);
+    });
+  });
+
+  // ---- Init ----
+  render();
+})();
+</script>
+</body>
+</html>
