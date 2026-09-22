@@ -1,0 +1,48 @@
+:root {
+  color-scheme: light;
+  font: 16px/1.4 system-ui, "Microsoft YaHei", sans-serif;
+  color: #293847;
+  background: #f4f6f7;
+}
+@font-face { font-family: WenKai; src: url('/wenkai.ttf') format('truetype'); font-display: swap; }
+* { box-sizing: border-box; }
+body { margin: 0; min-height: 100vh; background: linear-gradient(#ffffff22,#f4f6f7aa), url('/background.png') center top / cover fixed; }
+button, input { font: inherit; }
+button { cursor: pointer; border: 0; border-radius: 13px; padding: .65rem 1rem; background: #eef2f3; color: #293847; }
+button.primary { background: #28afa8; color: white; font-weight: 600; }
+.app { max-width: 1140px; margin: 0 auto; padding: clamp(12px, 2vw, 24px); }
+.toolbar { display: flex; gap: 1rem; align-items: center; margin-bottom: 1rem; padding: .4rem; }
+.brand { font-size: 1.4rem; font-weight: 700; margin-right: auto; }
+#sync-state { color: #5f6d7b; font-size: .9rem; }
+.glass { border: 1px solid #ffffffd9; background: #f3f7f8d9; border-radius: 16px; backdrop-filter: blur(14px); }
+.composer { display: grid; grid-template-columns: 1fr auto; gap: .7rem; padding: 1rem; margin-bottom: 1rem; }
+.composer > input { min-width: 0; border: 0; border-radius: 12px; background: #ffffffdb; color: #293847; padding: .8rem 1rem; outline-color: #28afa8; }
+.options { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: .8rem 1.2rem; align-items: center; }
+.options label { display: inline-flex; gap: .45rem; align-items: center; }
+.options input[type=checkbox] { appearance: none; position: relative; width: 3.8rem; height: 2rem; margin: 0; border: 1px solid #aeb5bc; border-radius: 2rem; background: #b7bcc1; cursor: pointer; transition: background .15s; }
+.options input[type=checkbox]::after { content: ''; position: absolute; width: 1.65rem; height: 1.65rem; top: .12rem; left: .13rem; border-radius: 50%; background: #f4f6f7; border: 1px solid #aeb5bc; transition: transform .15s; }
+.options input[type=checkbox]:checked { background: #28afa8; border-color: #28afa8; }
+.options input[type=checkbox]:checked::after { transform: translateX(1.78rem); }
+.options input[type=checkbox]:focus-visible { outline: 2px solid #293847; outline-offset: 2px; }
+.options input[type=datetime-local] { color: #293847; background: #ffffffd9; border: 0; border-radius: 10px; padding: .35rem; }
+.matrix { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.quadrant { min-height: 310px; padding: 12px; border: 1px solid #ffffffd9; border-radius: 16px; backdrop-filter: blur(10px); display: flex; flex-direction: column; gap: 8px; }
+.q0 { background: #a65f6970; } .q1 { background: #4b9ca070; } .q2 { background: #5d83b070; } .q3 { background: #777a8070; }
+.quadrant-head { display: flex; align-items: center; justify-content: flex-end; gap: 8px; }
+.count { border-radius: 10px; background: #ffffffe0; padding: .2rem .65rem; }
+.tasks { display: flex; flex-direction: column; gap: 6px; min-height: 70px; }
+.task { display: flex; gap: 8px; align-items: center; min-height: 48px; padding: 7px 9px; background: #ffffffe3; border: 1px solid #ffffffea; border-radius: 12px; }
+.task.dragging { opacity: .45; }
+.task input[type=checkbox] { width: 20px; height: 20px; accent-color: #28afa8; flex: none; }
+.task-main { min-width: 0; flex: 1; overflow-wrap: anywhere; }
+.task.done .task-main { text-decoration: line-through; opacity: .6; }
+.task small { display: block; color: #5f6d7b; font-size: .75rem; }
+.task button { padding: .3rem .55rem; background: transparent; white-space: nowrap; }
+.watermark { margin-top: auto; text-align: center; font: 2rem WenKai, cursive; opacity: .35; pointer-events: none; }
+dialog { width: min(92vw, 420px); border: 1px solid #dde4e6; border-radius: 16px; color: #293847; }
+dialog::backdrop { background: #29384788; }
+dialog form { display: grid; gap: 1rem; }
+dialog h2, dialog p { margin: 0; }
+dialog input { width: 100%; margin-top: .4rem; padding: .65rem; border: 1px solid #b7bcc1; border-radius: 8px; }
+.dialog-actions { display: flex; justify-content: flex-end; gap: .5rem; }
+@media (max-width: 680px) { .matrix { grid-template-columns: repeat(2, minmax(0,1fr)); } .quadrant { min-height: 220px; } .task { flex-wrap: wrap; } .watermark { font-size: 1.4rem; } .brand { font-size: 1.1rem; } }

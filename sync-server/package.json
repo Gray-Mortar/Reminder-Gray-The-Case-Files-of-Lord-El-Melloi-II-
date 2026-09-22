@@ -1,0 +1,11 @@
+{
+  "name": "remindergray-sync",
+  "private": true,
+  "version": "1.2.0",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js",
+    "test": "node --test"
+  },
+  "engines": { "node": ">=20" }
+}

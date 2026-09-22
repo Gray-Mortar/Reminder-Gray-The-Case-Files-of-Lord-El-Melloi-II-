@@ -42,6 +42,7 @@ public class MainActivity extends Activity {
     private SilverToggleSwitch importantSwitch;
     private SilverToggleSwitch urgentSwitch;
     private Button timeButton;
+    private Button syncButton;
     private final long[] draftDueAt = {0L};
 
     @Override
@@ -225,6 +226,23 @@ public class MainActivity extends Activity {
                 0, ViewUtils.dp(this, 42), 1);
         timeParams.setMargins(ViewUtils.dp(this, 4), 0, 0, 0);
         secondRow.addView(timeButton, timeParams);
+        syncButton = new Button(this);
+        syncButton.setText("☁");
+        syncButton.setTextSize(17);
+        syncButton.setTextColor(ThemePalette.TEXT_SECONDARY);
+        syncButton.setPadding(0, 0, 0, 0);
+        syncButton.setMinWidth(0);
+        syncButton.setMinimumWidth(0);
+        syncButton.setBackgroundColor(Color.TRANSPARENT);
+        syncButton.setContentDescription("点击配置并手动同步");
+        syncButton.setOnClickListener(view -> SyncManager.showSettings(this, (status, success) -> {
+            syncButton.setContentDescription(status + "，点击配置并手动同步");
+            syncButton.setText(success ? "☁" : "☁!");
+            if (success) renderTasks();
+            else Toast.makeText(this, status, Toast.LENGTH_LONG).show();
+        }));
+        secondRow.addView(syncButton, new LinearLayout.LayoutParams(
+                ViewUtils.dp(this, 34), ViewUtils.dp(this, 42)));
         panel.addView(secondRow);
 
         add.setOnClickListener(view -> addTaskFromControls());

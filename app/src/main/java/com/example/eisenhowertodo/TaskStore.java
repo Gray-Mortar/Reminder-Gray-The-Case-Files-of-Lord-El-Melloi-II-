@@ -8,11 +8,18 @@ import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.ThreadLocalRandom;
 
 final class TaskStore {
     private static final String PREFS = "eisenhower_tasks";
     private static final String KEY_TASKS = "tasks";
+    private static final String KEY_PENDING = "sync_pending";
+    private static final String KEY_SYNC_INITIALIZED = "sync_initialized";
 
     private final SharedPreferences preferences;
 
@@ -33,7 +40,9 @@ final class TaskStore {
                         item.optInt("quadrant", 0),
                         item.optBoolean("done", false),
                         item.optLong("createdAt", item.getLong("id")),
-                        item.optLong("dueAt", 0L)
+                        item.optLong("dueAt", 0L),
+                        item.optDouble("order", index * 1024d),
+                        item.optLong("version", 0L)
                 ));
             }
         } catch (JSONException ignored) {
@@ -51,8 +60,10 @@ final class TaskStore {
         if (normalized.isEmpty()) return;
         List<Task> tasks = all();
         long now = System.currentTimeMillis();
-        Task added = new Task(now, normalized, clampQuadrant(quadrant), false, now,
+        long id = now * 1000L + ThreadLocalRandom.current().nextInt(1000);
+        Task added = new Task(id, normalized, clampQuadrant(quadrant), false, now,
                 Math.max(0L, dueAt));
+        added.order = firstOrderOfQuadrant(tasks, added.quadrant) - 1024d;
         tasks.add(firstIndexOfQuadrant(tasks, added.quadrant), added);
         save(tasks);
     }
@@ -79,6 +90,7 @@ final class TaskStore {
             task.dueAt = Math.max(0L, dueAt);
             if (quadrantChanged) {
                 tasks.remove(index);
+                task.order = firstOrderOfQuadrant(tasks, target) - 1024d;
                 tasks.add(firstIndexOfQuadrant(tasks, target), task);
             }
             break;
@@ -106,6 +118,7 @@ final class TaskStore {
             if (task.quadrant != target) {
                 tasks.remove(index);
                 task.quadrant = target;
+                task.order = firstOrderOfQuadrant(tasks, target) - 1024d;
                 tasks.add(firstIndexOfQuadrant(tasks, target), task);
             }
             break;
@@ -135,6 +148,7 @@ final class TaskStore {
         }
         if (anchorIndex < 0) return;
         tasks.add(placeAfter ? anchorIndex + 1 : anchorIndex, dragged);
+        normalizeOrder(tasks, dragged.quadrant);
         save(tasks);
     }
 
@@ -157,6 +171,7 @@ final class TaskStore {
             }
         }
         tasks.add(insertAt, dragged);
+        normalizeOrder(tasks, quadrant);
         save(tasks);
     }
 
@@ -183,7 +198,91 @@ final class TaskStore {
         return tasks.size();
     }
 
-    private void save(List<Task> tasks) {
+    private double firstOrderOfQuadrant(List<Task> tasks, int quadrant) {
+        double first = 0d;
+        for (Task task : tasks) {
+            if (task.quadrant == quadrant) first = Math.min(first, task.order);
+        }
+        return first;
+    }
+
+    private void normalizeOrder(List<Task> tasks, int quadrant) {
+        int index = 0;
+        for (Task task : tasks) {
+            if (task.quadrant == quadrant) task.order = index++ * 1024d;
+        }
+    }
+
+    synchronized void initializeSync() {
+        if (preferences.getBoolean(KEY_SYNC_INITIALIZED, false)) return;
+        JSONArray pending = pending();
+        for (Task task : all()) pending = queue(pending, "upsert", task);
+        preferences.edit().putString(KEY_PENDING, pending.toString())
+                .putBoolean(KEY_SYNC_INITIALIZED, true).apply();
+    }
+
+    synchronized JSONArray pending() {
+        try { return new JSONArray(preferences.getString(KEY_PENDING, "[]")); }
+        catch (JSONException ignored) { return new JSONArray(); }
+    }
+
+    synchronized void applyRemote(JSONObject response, JSONArray sent) throws JSONException {
+        JSONArray incoming = response.getJSONArray("tasks");
+        Set<String> sentIds = new HashSet<>();
+        for (int index = 0; index < sent.length(); index++) {
+            sentIds.add(sent.getJSONObject(index).getString("opId"));
+        }
+        JSONArray outstanding = new JSONArray();
+        Set<Long> localIds = new HashSet<>();
+        JSONArray currentPending = pending();
+        for (int index = 0; index < currentPending.length(); index++) {
+            JSONObject operation = currentPending.getJSONObject(index);
+            if (sentIds.contains(operation.getString("opId"))) continue;
+            long id = operation.getLong("id");
+            localIds.add(id);
+            outstanding.put(operation);
+        }
+        Map<Long, Task> local = new HashMap<>();
+        for (Task task : all()) local.put(task.id, task);
+        List<Task> merged = new ArrayList<>();
+        for (int index = 0; index < incoming.length(); index++) {
+            JSONObject item = incoming.getJSONObject(index);
+            long id = item.getLong("id");
+            long version = item.optLong("version", 0L);
+            for (int opIndex = 0; opIndex < outstanding.length(); opIndex++) {
+                JSONObject operation = outstanding.getJSONObject(opIndex);
+                if (operation.getLong("id") == id) operation.put("baseVersion", version);
+            }
+            if (localIds.contains(id)) {
+                Task pendingTask = local.get(id);
+                if (pendingTask != null) merged.add(pendingTask);
+                continue;
+            }
+            if (!item.optBoolean("deleted", false)) merged.add(readTask(item, index));
+        }
+        for (Long id : localIds) {
+            boolean exists = false;
+            for (Task task : merged) if (task.id == id) { exists = true; break; }
+            if (!exists && local.containsKey(id)) merged.add(local.get(id));
+        }
+        merged.sort((a, b) -> {
+            int quadrantOrder = Integer.compare(a.quadrant, b.quadrant);
+            if (quadrantOrder != 0) return quadrantOrder;
+            int rankOrder = Double.compare(a.order, b.order);
+            return rankOrder != 0 ? rankOrder : Long.compare(a.createdAt, b.createdAt);
+        });
+        preferences.edit().putString(KEY_TASKS, taskArray(merged).toString())
+                .putString(KEY_PENDING, outstanding.toString()).apply();
+    }
+
+    private Task readTask(JSONObject item, int index) throws JSONException {
+        return new Task(item.getLong("id"), item.getString("text"),
+                item.optInt("quadrant", 0), item.optBoolean("done", false),
+                item.optLong("createdAt", item.getLong("id")), item.optLong("dueAt", 0L),
+                item.optDouble("order", index * 1024d), item.optLong("version", 0L));
+    }
+
+    private JSONArray taskArray(List<Task> tasks) {
         JSONArray array = new JSONArray();
         for (Task task : tasks) {
             JSONObject item = new JSONObject();
@@ -194,11 +293,51 @@ final class TaskStore {
                 item.put("done", task.done);
                 item.put("createdAt", task.createdAt);
                 item.put("dueAt", task.dueAt);
+                item.put("order", task.order);
+                item.put("version", task.serverVersion);
                 array.put(item);
-            } catch (JSONException ignored) {
-                // Values used here are JSON-safe primitives.
+            } catch (JSONException ignored) { }
+        }
+        return array;
+    }
+
+    private JSONArray queue(JSONArray pending, String kind, Task task) {
+        String id = String.valueOf(task.id);
+        long baseVersion = task.serverVersion;
+        JSONArray remaining = new JSONArray();
+        for (int index = 0; index < pending.length(); index++) {
+            JSONObject previous = pending.optJSONObject(index);
+            if (previous == null) continue;
+            if (id.equals(previous.optString("id"))) baseVersion = previous.optLong("baseVersion", 0L);
+            else remaining.put(previous);
+        }
+        JSONObject operation = new JSONObject();
+        try {
+            operation.put("opId", "android." + java.util.UUID.randomUUID());
+            operation.put("kind", kind);
+            operation.put("id", id);
+            operation.put("baseVersion", baseVersion);
+            if ("upsert".equals(kind)) operation.put("task", taskArray(java.util.Collections.singletonList(task)).getJSONObject(0));
+            remaining.put(operation);
+        } catch (JSONException ignored) { }
+        return remaining;
+    }
+
+    private void save(List<Task> tasks) {
+        Map<Long, Task> previous = new HashMap<>();
+        for (Task task : all()) previous.put(task.id, task);
+        JSONArray operations = pending();
+        for (Task task : tasks) {
+            Task old = previous.remove(task.id);
+            if (old == null || !old.text.equals(task.text) || old.quadrant != task.quadrant ||
+                    old.done != task.done || old.dueAt != task.dueAt || old.order != task.order) {
+                operations = queue(operations, "upsert", task);
             }
         }
-        preferences.edit().putString(KEY_TASKS, array.toString()).apply();
+        for (Task deleted : previous.values()) {
+            operations = queue(operations, "delete", deleted);
+        }
+        preferences.edit().putString(KEY_TASKS, taskArray(tasks).toString())
+                .putString(KEY_PENDING, operations.toString()).apply();
     }
 }
