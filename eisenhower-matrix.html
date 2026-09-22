@@ -105,7 +105,26 @@
     overflow: hidden;
     display: flex;
     flex-direction: column;
+    position: relative;
   }
+  .quadrant::after {
+    content: attr(data-action);
+    position: absolute;
+    inset: 52px 0 0;
+    display: grid;
+    place-items: center;
+    color: currentColor;
+    opacity: .07;
+    font-size: clamp(2rem, 5vw, 4rem);
+    font-weight: 800;
+    transform: rotate(-10deg);
+    pointer-events: none;
+    z-index: 0;
+  }
+  .q1 { color: var(--q1); }
+  .q2 { color: var(--q2); }
+  .q3 { color: var(--q3); }
+  .q4 { color: var(--q4); }
   .quadrant-header {
     padding: 14px 18px;
     font-weight: 700;
@@ -114,6 +133,8 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
+    position: relative;
+    z-index: 1;
   }
   .q1 .quadrant-header { background: var(--q1); }
   .q2 .quadrant-header { background: var(--q2); }
@@ -131,6 +152,8 @@
     min-height: 160px;
     padding: 8px;
     list-style: none;
+    position: relative;
+    z-index: 1;
   }
   .quadrant-body:empty::after {
     content: "Drop items here";
@@ -261,7 +284,7 @@
   <div class="matrix">
 
     <!-- Q1: Urgent + Important -->
-    <div class="quadrant q1">
+    <div class="quadrant q1" data-action="立即做">
       <div class="quadrant-header">
         <span>🔴 Do First</span>
         <span class="badge">Urgent &amp; Important</span>
@@ -270,7 +293,7 @@
     </div>
 
     <!-- Q2: Not Urgent + Important -->
-    <div class="quadrant q2">
+    <div class="quadrant q2" data-action="安排做">
       <div class="quadrant-header">
         <span>🟢 Schedule</span>
         <span class="badge">Important, Not Urgent</span>
@@ -279,7 +302,7 @@
     </div>
 
     <!-- Q3: Urgent + Not Important -->
-    <div class="quadrant q3">
+    <div class="quadrant q3" data-action="委托做">
       <div class="quadrant-header">
         <span>🔵 Delegate</span>
         <span class="badge">Urgent, Not Important</span>
@@ -288,7 +311,7 @@
     </div>
 
     <!-- Q4: Not Urgent + Not Important -->
-    <div class="quadrant q4">
+    <div class="quadrant q4" data-action="尽量不做">
       <div class="quadrant-header">
         <span>⚪ Eliminate</span>
         <span class="badge">Not Urgent &amp; Not Important</span>
