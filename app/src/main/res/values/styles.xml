@@ -2,7 +2,7 @@
 <resources>
     <style name="Theme.EisenhowerTodo" parent="android:style/Theme.Material.Light.NoActionBar">
         <item name="android:fontFamily">sans</item>
-        <item name="android:colorAccent">@color/navy</item>
+        <item name="android:colorAccent">@color/accent</item>
         <item name="android:navigationBarColor">@color/background</item>
         <item name="android:statusBarColor">@color/background</item>
         <item name="android:windowLightStatusBar">true</item>
@@ -11,7 +11,7 @@
 
     <style name="Theme.EisenhowerTodo.QuickAdd" parent="android:style/Theme.Material.Light.Dialog.Alert">
         <item name="android:fontFamily">sans</item>
-        <item name="android:colorAccent">@color/navy</item>
+        <item name="android:colorAccent">@color/accent</item>
         <item name="android:windowCloseOnTouchOutside">true</item>
         <item name="android:windowSoftInputMode">stateAlwaysVisible</item>
     </style>

@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">四象限待办</string>
-    <string name="widget_name">快速添加待办</string>
+    <string name="app_name">ReminderGray</string>
+    <string name="widget_name">ReminderGray · 快速添加</string>
     <string name="widget_description">点一下立即输入新的待办事项</string>
     <string name="widget_plus">＋</string>
     <string name="quick_add">快速添加</string>

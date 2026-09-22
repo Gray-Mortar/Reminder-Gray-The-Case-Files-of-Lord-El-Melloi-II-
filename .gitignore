@@ -6,3 +6,8 @@ local.properties
 captures/
 .externalNativeBuild/
 .cxx/
+sync-server/data/
+DESIGN_SPEC.md
+REQUIREMENTS.md
+PHASE4_WIDGET_PLAN.md
+PHASE3_SYNC_PLAN.md

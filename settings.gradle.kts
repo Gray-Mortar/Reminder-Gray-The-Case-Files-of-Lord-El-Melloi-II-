@@ -14,5 +14,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "EisenhowerTodo"
+rootProject.name = "ReminderGray"
 include(":app")

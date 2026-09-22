@@ -5,6 +5,10 @@ import android.graphics.Color;
 import android.graphics.drawable.GradientDrawable;
 import android.view.View;
 
+import java.text.SimpleDateFormat;
+import java.util.Date;
+import java.util.Locale;
+
 final class ViewUtils {
     private ViewUtils() {}
 
@@ -20,8 +24,13 @@ final class ViewUtils {
     }
 
     static GradientDrawable roundedWithStroke(int color, int strokeColor, float radiusDp, Context context) {
+        return roundedWithStroke(color, strokeColor, 1f, radiusDp, context);
+    }
+
+    static GradientDrawable roundedWithStroke(int color, int strokeColor, float strokeDp,
+                                               float radiusDp, Context context) {
         GradientDrawable drawable = rounded(color, radiusDp, context);
-        drawable.setStroke(dp(context, 1), strokeColor);
+        drawable.setStroke(dp(context, strokeDp), strokeColor);
         return drawable;
     }
 
@@ -33,5 +42,10 @@ final class ViewUtils {
 
     static int withAlpha(int color, int alpha) {
         return Color.argb(alpha, Color.red(color), Color.green(color), Color.blue(color));
+    }
+
+    static String formatDueTime(long dueAt) {
+        if (dueAt <= 0L) return "";
+        return new SimpleDateFormat("M月d日 HH:mm", Locale.CHINA).format(new Date(dueAt));
     }
 }

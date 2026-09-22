@@ -1,6 +1,7 @@
 package com.example.eisenhowertodo;
 
 import android.app.Activity;
+import android.content.Context;
 import android.graphics.Color;
 import android.os.Bundle;
 import android.view.Gravity;
@@ -8,18 +9,18 @@ import android.view.Window;
 import android.view.WindowManager;
 import android.view.inputmethod.EditorInfo;
 import android.view.inputmethod.InputMethodManager;
-import android.content.Context;
-import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.LinearLayout;
-import android.widget.Spinner;
 import android.widget.TextView;
 import android.widget.Toast;
 
 public class QuickAddActivity extends Activity {
     private EditText input;
-    private Spinner quadrant;
+    private SilverToggleSwitch important;
+    private SilverToggleSwitch urgent;
+    private Button time;
+    private final long[] dueAt = {0L};
     private TaskStore store;
 
     @Override
@@ -39,7 +40,8 @@ public class QuickAddActivity extends Activity {
 
         input.requestFocus();
         input.postDelayed(() -> {
-            InputMethodManager keyboard = (InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);
+            InputMethodManager keyboard =
+                    (InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);
             keyboard.showSoftInput(input, InputMethodManager.SHOW_IMPLICIT);
         }, 180);
     }
@@ -47,44 +49,59 @@ public class QuickAddActivity extends Activity {
     private LinearLayout createContent() {
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
-        root.setPadding(ViewUtils.dp(this, 22), ViewUtils.dp(this, 20),
-                ViewUtils.dp(this, 22), ViewUtils.dp(this, 24));
-        root.setBackgroundColor(Color.WHITE);
+        root.setPadding(ViewUtils.dp(this, 20), ViewUtils.dp(this, 18),
+                ViewUtils.dp(this, 20), ViewUtils.dp(this, 22));
+        root.setBackgroundColor(0xFFF4F6F7);
 
-        TextView title = new TextView(this);
-        title.setText("快速添加待办");
-        title.setTextSize(22);
-        title.setTextColor(Color.rgb(32, 54, 75));
-        title.setTypeface(title.getTypeface(), android.graphics.Typeface.BOLD);
+        TextView title = text("快速添加待办", 21, ThemePalette.TEXT, true);
         root.addView(title);
 
         input = new EditText(this);
         input.setHint("现在要记下什么？");
         input.setTextSize(18);
+        input.setTextColor(ThemePalette.TEXT);
         input.setSingleLine(true);
         input.setImeOptions(EditorInfo.IME_ACTION_DONE);
         LinearLayout.LayoutParams inputParams = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, ViewUtils.dp(this, 58));
-        inputParams.setMargins(0, ViewUtils.dp(this, 10), 0, ViewUtils.dp(this, 8));
+        inputParams.setMargins(0, ViewUtils.dp(this, 8), 0, ViewUtils.dp(this, 5));
         root.addView(input, inputParams);
 
-        quadrant = new Spinner(this);
-        ArrayAdapter<String> adapter = new ArrayAdapter<>(this,
-                android.R.layout.simple_spinner_item, MainActivity.TITLES);
-        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
-        quadrant.setAdapter(adapter);
-        root.addView(quadrant, new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT, ViewUtils.dp(this, 52)));
+        LinearLayout options = new LinearLayout(this);
+        options.setGravity(Gravity.CENTER_VERTICAL);
+        important = new SilverToggleSwitch(this);
+        urgent = new SilverToggleSwitch(this);
+        options.addView(switchGroup("重要", important),
+                new LinearLayout.LayoutParams(ViewUtils.dp(this, 112), ViewUtils.dp(this, 50)));
+        options.addView(switchGroup("紧急", urgent),
+                new LinearLayout.LayoutParams(ViewUtils.dp(this, 112), ViewUtils.dp(this, 50)));
+        time = new Button(this);
+        time.setAllCaps(false);
+        time.setTextSize(13);
+        time.setTextColor(ThemePalette.TEXT_SECONDARY);
+        time.setBackground(ViewUtils.roundedWithStroke(
+                Color.WHITE, 0xFFD9DEE2, 12, this));
+        updateTime();
+        time.setOnClickListener(view -> TaskEditorDialog.pickDateTime(
+                this, dueAt, this::updateTime));
+        time.setOnLongClickListener(view -> {
+            dueAt[0] = 0L;
+            updateTime();
+            return true;
+        });
+        options.addView(time, new LinearLayout.LayoutParams(
+                0, ViewUtils.dp(this, 44), 1));
+        root.addView(options);
 
         Button save = new Button(this);
-        save.setText("保存并返回桌面");
+        save.setText("添加并返回桌面");
         save.setTextColor(Color.WHITE);
         save.setTextSize(16);
         save.setAllCaps(false);
-        save.setBackground(ViewUtils.rounded(Color.rgb(32, 54, 75), 11, this));
+        save.setBackground(ViewUtils.rounded(ThemePalette.ACCENT, 12, this));
         LinearLayout.LayoutParams saveParams = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, ViewUtils.dp(this, 50));
-        saveParams.setMargins(0, ViewUtils.dp(this, 12), 0, 0);
+        saveParams.setMargins(0, ViewUtils.dp(this, 10), 0, 0);
         root.addView(save, saveParams);
 
         save.setOnClickListener(view -> save());
@@ -98,15 +115,40 @@ public class QuickAddActivity extends Activity {
         return root;
     }
 
+    private LinearLayout switchGroup(String label, SilverToggleSwitch toggle) {
+        LinearLayout group = new LinearLayout(this);
+        group.setGravity(Gravity.CENTER_VERTICAL);
+        group.addView(text(label, 14, ThemePalette.TEXT, false));
+        group.addView(toggle, new LinearLayout.LayoutParams(
+                ViewUtils.dp(this, 64), ViewUtils.dp(this, 46)));
+        return group;
+    }
+
+    private void updateTime() {
+        time.setText(dueAt[0] > 0L
+                ? "◷ " + ViewUtils.formatDueTime(dueAt[0])
+                : "◷ 时间（可选）");
+    }
+
     private void save() {
-        String text = input.getText().toString().trim();
-        if (text.isEmpty()) {
+        String value = input.getText().toString().trim();
+        if (value.isEmpty()) {
             input.setError("请输入待办内容");
             return;
         }
-        store.add(text, quadrant.getSelectedItemPosition());
-        Toast.makeText(this, "已添加到“" + MainActivity.TITLES[quadrant.getSelectedItemPosition()] + "”",
+        int quadrant = ThemePalette.quadrantFor(important.isChecked(), urgent.isChecked());
+        store.add(value, quadrant, dueAt[0]);
+        Toast.makeText(this, "已添加到“" + MainActivity.TITLES[quadrant] + "”",
                 Toast.LENGTH_SHORT).show();
         finish();
+    }
+
+    private TextView text(String value, float size, int color, boolean bold) {
+        TextView textView = new TextView(this);
+        textView.setText(value);
+        textView.setTextSize(size);
+        textView.setTextColor(color);
+        if (bold) textView.setTypeface(textView.getTypeface(), android.graphics.Typeface.BOLD);
+        return textView;
     }
 }

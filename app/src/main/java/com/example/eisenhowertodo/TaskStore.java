@@ -8,7 +8,6 @@ import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.List;
 
 final class TaskStore {
@@ -33,22 +32,57 @@ final class TaskStore {
                         item.getString("text"),
                         item.optInt("quadrant", 0),
                         item.optBoolean("done", false),
-                        item.optLong("createdAt", item.getLong("id"))
+                        item.optLong("createdAt", item.getLong("id")),
+                        item.optLong("dueAt", 0L)
                 ));
             }
         } catch (JSONException ignored) {
             preferences.edit().remove(KEY_TASKS).apply();
         }
-        tasks.sort(Comparator.comparingLong(task -> task.createdAt));
         return tasks;
     }
 
     synchronized void add(String text, int quadrant) {
+        add(text, quadrant, 0L);
+    }
+
+    synchronized void add(String text, int quadrant, long dueAt) {
         String normalized = text == null ? "" : text.trim();
         if (normalized.isEmpty()) return;
         List<Task> tasks = all();
         long now = System.currentTimeMillis();
-        tasks.add(new Task(now, normalized, clampQuadrant(quadrant), false, now));
+        Task added = new Task(now, normalized, clampQuadrant(quadrant), false, now,
+                Math.max(0L, dueAt));
+        tasks.add(firstIndexOfQuadrant(tasks, added.quadrant), added);
+        save(tasks);
+    }
+
+    synchronized Task find(long id) {
+        for (Task task : all()) {
+            if (task.id == id) return task;
+        }
+        return null;
+    }
+
+    synchronized void update(long id, String text, int quadrant, boolean done, long dueAt) {
+        String normalized = text == null ? "" : text.trim();
+        if (normalized.isEmpty()) return;
+        List<Task> tasks = all();
+        for (int index = 0; index < tasks.size(); index++) {
+            Task task = tasks.get(index);
+            if (task.id != id) continue;
+            int target = clampQuadrant(quadrant);
+            boolean quadrantChanged = task.quadrant != target;
+            task.text = normalized;
+            task.quadrant = target;
+            task.done = done;
+            task.dueAt = Math.max(0L, dueAt);
+            if (quadrantChanged) {
+                tasks.remove(index);
+                tasks.add(firstIndexOfQuadrant(tasks, target), task);
+            }
+            break;
+        }
         save(tasks);
     }
 
@@ -65,12 +99,64 @@ final class TaskStore {
 
     synchronized void move(long id, int quadrant) {
         List<Task> tasks = all();
+        for (int index = 0; index < tasks.size(); index++) {
+            Task task = tasks.get(index);
+            if (task.id != id) continue;
+            int target = clampQuadrant(quadrant);
+            if (task.quadrant != target) {
+                tasks.remove(index);
+                task.quadrant = target;
+                tasks.add(firstIndexOfQuadrant(tasks, target), task);
+            }
+            break;
+        }
+        save(tasks);
+    }
+
+    synchronized void reorder(long draggedId, long anchorId, boolean placeAfter) {
+        if (draggedId == anchorId) return;
+        List<Task> tasks = all();
+        Task dragged = null;
         for (Task task : tasks) {
-            if (task.id == id) {
-                task.quadrant = clampQuadrant(quadrant);
+            if (task.id == draggedId) {
+                dragged = task;
                 break;
             }
         }
+        if (dragged == null) return;
+        tasks.remove(dragged);
+        int anchorIndex = -1;
+        for (int index = 0; index < tasks.size(); index++) {
+            Task candidate = tasks.get(index);
+            if (candidate.id == anchorId && candidate.quadrant == dragged.quadrant) {
+                anchorIndex = index;
+                break;
+            }
+        }
+        if (anchorIndex < 0) return;
+        tasks.add(placeAfter ? anchorIndex + 1 : anchorIndex, dragged);
+        save(tasks);
+    }
+
+    synchronized void moveToEnd(long id, int quadrant) {
+        List<Task> tasks = all();
+        Task dragged = null;
+        for (Task task : tasks) {
+            if (task.id == id && task.quadrant == quadrant) {
+                dragged = task;
+                break;
+            }
+        }
+        if (dragged == null) return;
+        tasks.remove(dragged);
+        int insertAt = tasks.size();
+        for (int index = tasks.size() - 1; index >= 0; index--) {
+            if (tasks.get(index).quadrant == quadrant) {
+                insertAt = index + 1;
+                break;
+            }
+        }
+        tasks.add(insertAt, dragged);
         save(tasks);
     }
 
@@ -90,6 +176,13 @@ final class TaskStore {
         return Math.max(0, Math.min(3, quadrant));
     }
 
+    private int firstIndexOfQuadrant(List<Task> tasks, int quadrant) {
+        for (int index = 0; index < tasks.size(); index++) {
+            if (tasks.get(index).quadrant == quadrant) return index;
+        }
+        return tasks.size();
+    }
+
     private void save(List<Task> tasks) {
         JSONArray array = new JSONArray();
         for (Task task : tasks) {
@@ -100,6 +193,7 @@ final class TaskStore {
                 item.put("quadrant", task.quadrant);
                 item.put("done", task.done);
                 item.put("createdAt", task.createdAt);
+                item.put("dueAt", task.dueAt);
                 array.put(item);
             } catch (JSONException ignored) {
                 // Values used here are JSON-safe primitives.

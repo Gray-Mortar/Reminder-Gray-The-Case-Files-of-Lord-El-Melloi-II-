@@ -3,24 +3,28 @@ package com.example.eisenhowertodo;
 import android.app.Activity;
 import android.content.ClipData;
 import android.content.ClipDescription;
+import android.content.Intent;
 import android.content.res.ColorStateList;
 import android.graphics.Color;
 import android.graphics.Paint;
+import android.graphics.Typeface;
 import android.os.Bundle;
 import android.view.DragEvent;
 import android.view.Gravity;
+import android.view.MotionEvent;
 import android.view.View;
+import android.view.Window;
+import android.view.WindowManager;
 import android.view.inputmethod.EditorInfo;
 import android.widget.Button;
 import android.widget.CheckBox;
 import android.widget.EditText;
 import android.widget.FrameLayout;
 import android.widget.GridLayout;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.PopupMenu;
 import android.widget.ScrollView;
-import android.widget.Spinner;
-import android.widget.ArrayAdapter;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -28,26 +32,23 @@ import java.util.List;
 
 public class MainActivity extends Activity {
     static final String[] TITLES = {"立即做", "安排做", "委托做", "尽量不做"};
-    static final String[] DESCRIPTIONS = {
-            "紧急且重要", "重要但不紧急", "紧急但不重要", "不紧急不重要"
-    };
-    static final int[] COLORS = {
-            Color.rgb(232, 93, 93), Color.rgb(57, 185, 120),
-            Color.rgb(76, 142, 217), Color.rgb(135, 149, 161)
-    };
+    static final int[] COLORS = ThemePalette.QUADRANT;
+    private static final int MAX_VISIBLE_TASKS = 4;
 
     private final LinearLayout[] taskLists = new LinearLayout[4];
     private final TextView[] countBadges = new TextView[4];
     private TaskStore store;
     private EditText input;
-    private Spinner quadrantSpinner;
-    private TextView summary;
+    private SilverToggleSwitch importantSwitch;
+    private SilverToggleSwitch urgentSwitch;
+    private Button timeButton;
+    private final long[] draftDueAt = {0L};
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        configureWindow();
         store = new TaskStore(this);
-        setTitle("四象限待办");
         setContentView(createContent());
         renderTasks();
     }
@@ -58,27 +59,57 @@ public class MainActivity extends Activity {
         if (store != null && taskLists[0] != null) renderTasks();
     }
 
+    private void configureWindow() {
+        Window window = getWindow();
+        window.setStatusBarColor(Color.TRANSPARENT);
+        window.setNavigationBarColor(0xFFF4F6F7);
+        window.setFlags(WindowManager.LayoutParams.FLAG_DRAWS_SYSTEM_BAR_BACKGROUNDS,
+                WindowManager.LayoutParams.FLAG_DRAWS_SYSTEM_BAR_BACKGROUNDS);
+        window.getDecorView().setSystemUiVisibility(
+                View.SYSTEM_UI_FLAG_LAYOUT_STABLE
+                        | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
+                        | View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR);
+    }
+
     private View createContent() {
+        FrameLayout root = new FrameLayout(this);
+
+        ImageView background = new ImageView(this);
+        background.setImageResource(R.drawable.app_background_tall);
+        // Keep exactly one full-screen image. Stacking FIT_START over CENTER_CROP
+        // made the character appear twice on tall physical devices.
+        background.setScaleType(ImageView.ScaleType.CENTER_CROP);
+        background.setAlpha(0.76f);
+        root.addView(background, new FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT));
+
+        View softLight = new View(this);
+        softLight.setBackgroundColor(0x0FFFFFFF);
+        root.addView(softLight, new FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT));
+
         ScrollView scroll = new ScrollView(this);
         scroll.setFillViewport(true);
-        scroll.setBackgroundColor(Color.rgb(245, 247, 250));
+        scroll.setClipToPadding(false);
+        scroll.setVerticalScrollBarEnabled(false);
 
-        LinearLayout root = new LinearLayout(this);
-        root.setOrientation(LinearLayout.VERTICAL);
-        root.setPadding(ViewUtils.dp(this, 14), ViewUtils.dp(this, 22),
-                ViewUtils.dp(this, 14), ViewUtils.dp(this, 32));
-        scroll.addView(root, new ScrollView.LayoutParams(
+        LinearLayout content = new LinearLayout(this);
+        content.setOrientation(LinearLayout.VERTICAL);
+        content.setPadding(ViewUtils.dp(this, 12), 0,
+                ViewUtils.dp(this, 12), ViewUtils.dp(this, 28));
+        scroll.addView(content, new ScrollView.LayoutParams(
                 ScrollView.LayoutParams.MATCH_PARENT, ScrollView.LayoutParams.WRAP_CONTENT));
 
-        TextView title = text("四象限待办", 28, Color.rgb(32, 54, 75), true);
-        root.addView(title);
+        View portraitSpace = new View(this);
+        int portraitHeight = Math.round(
+                getResources().getDisplayMetrics().heightPixels * 0.33f);
+        content.addView(portraitSpace, new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, portraitHeight));
 
-        TextView subtitle = text("先判断重要性，再决定行动方式", 14, Color.rgb(107, 120, 132), false);
-        LinearLayout.LayoutParams subtitleParams = wrap();
-        subtitleParams.setMargins(0, ViewUtils.dp(this, 2), 0, ViewUtils.dp(this, 16));
-        root.addView(subtitle, subtitleParams);
-
-        root.addView(createAddPanel(), matchWrapWithBottom(16));
+        LinearLayout.LayoutParams composerParams = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+        composerParams.setMargins(0, 0, 0, ViewUtils.dp(this, 6));
+        content.addView(createComposer(), composerParams);
 
         GridLayout matrix = new GridLayout(this);
         matrix.setColumnCount(2);
@@ -90,73 +121,116 @@ public class MainActivity extends Activity {
             GridLayout.LayoutParams params = new GridLayout.LayoutParams(
                     GridLayout.spec(quadrant / 2, 1f), GridLayout.spec(quadrant % 2, 1f));
             params.width = 0;
-            params.height = ViewUtils.dp(this, 250);
-            int gap = ViewUtils.dp(this, 5);
+            params.height = ViewUtils.dp(this, 238);
+            int gap = ViewUtils.dp(this, 3);
             params.setMargins(gap, gap, gap, gap);
             matrix.addView(card, params);
         }
-        root.addView(matrix, new LinearLayout.LayoutParams(
+        content.addView(matrix, new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
 
-        LinearLayout footer = new LinearLayout(this);
-        footer.setGravity(Gravity.CENTER_VERTICAL);
-        footer.setPadding(ViewUtils.dp(this, 4), ViewUtils.dp(this, 12), ViewUtils.dp(this, 4), 0);
-        summary = text("", 13, Color.rgb(107, 120, 132), false);
-        footer.addView(summary, new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1));
-        Button clear = new Button(this);
-        clear.setText("清除已完成");
-        clear.setTextSize(12);
-        clear.setAllCaps(false);
-        clear.setOnClickListener(view -> {
-            store.clearCompleted();
-            renderTasks();
+        root.addView(scroll, new FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT));
+        root.setOnApplyWindowInsetsListener((view, insets) -> {
+            FrameLayout.LayoutParams params = (FrameLayout.LayoutParams) scroll.getLayoutParams();
+            params.bottomMargin = insets.getSystemWindowInsetBottom();
+            scroll.setLayoutParams(params);
+            return insets;
         });
-        footer.addView(clear, new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.WRAP_CONTENT, ViewUtils.dp(this, 44)));
-        root.addView(footer);
-
-        return scroll;
+        root.requestApplyInsets();
+        return root;
     }
 
-    private View createAddPanel() {
+    private View createComposer() {
         LinearLayout panel = new LinearLayout(this);
         panel.setOrientation(LinearLayout.VERTICAL);
-        panel.setPadding(ViewUtils.dp(this, 12), ViewUtils.dp(this, 10),
-                ViewUtils.dp(this, 12), ViewUtils.dp(this, 10));
-        panel.setBackground(ViewUtils.roundedWithStroke(Color.WHITE,
-                Color.rgb(226, 231, 236), 14, this));
+        panel.setPadding(ViewUtils.dp(this, 10), ViewUtils.dp(this, 9),
+                ViewUtils.dp(this, 10), ViewUtils.dp(this, 8));
+        panel.setBackground(ViewUtils.roundedWithStroke(
+                0xDCF3F7F8, 0xD9FFFFFF, 1f, 17, this));
+        panel.setElevation(ViewUtils.dp(this, 4));
+
+        LinearLayout firstRow = new LinearLayout(this);
+        firstRow.setGravity(Gravity.CENTER_VERTICAL);
+
+        LinearLayout draftField = new LinearLayout(this);
+        draftField.setGravity(Gravity.CENTER_VERTICAL);
+        draftField.setPadding(ViewUtils.dp(this, 8), 0, ViewUtils.dp(this, 6), 0);
+        draftField.setBackground(ViewUtils.roundedWithStroke(
+                0xD9FFFFFF, 0xDFFFFFFF, 1f, 13, this));
+
+        TextView handle = text("⠿", 25, ThemePalette.TEXT_SECONDARY, false);
+        handle.setGravity(Gravity.CENTER);
+        handle.setContentDescription("拖动待办到象限");
+        handle.setOnTouchListener((view, event) -> {
+            if (event.getAction() == MotionEvent.ACTION_DOWN) return startDraftDrag(view);
+            return true;
+        });
+        draftField.addView(handle, new LinearLayout.LayoutParams(
+                ViewUtils.dp(this, 34), ViewUtils.dp(this, 50)));
 
         input = new EditText(this);
         input.setHint("输入新的待办事项");
-        input.setSingleLine(true);
+        input.setHintTextColor(0x92717D8A);
+        input.setTextColor(ThemePalette.TEXT);
         input.setTextSize(16);
+        input.setSingleLine(true);
         input.setImeOptions(EditorInfo.IME_ACTION_DONE);
-        panel.addView(input, new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT, ViewUtils.dp(this, 52)));
+        input.setBackgroundColor(Color.TRANSPARENT);
+        draftField.addView(input, new LinearLayout.LayoutParams(
+                0, ViewUtils.dp(this, 52), 1));
 
-        LinearLayout actions = new LinearLayout(this);
-        actions.setGravity(Gravity.CENTER_VERTICAL);
-        quadrantSpinner = createQuadrantSpinner();
-        actions.addView(quadrantSpinner, new LinearLayout.LayoutParams(
-                0, ViewUtils.dp(this, 48), 1));
+        firstRow.addView(draftField, new LinearLayout.LayoutParams(
+                0, ViewUtils.dp(this, 54), 1));
 
         Button add = new Button(this);
         add.setText("添加");
         add.setTextColor(Color.WHITE);
-        add.setTextSize(15);
+        add.setTextSize(16);
         add.setAllCaps(false);
-        add.setBackground(ViewUtils.rounded(Color.rgb(32, 54, 75), 10, this));
+        add.setBackground(ViewUtils.rounded(ThemePalette.ACCENT, 13, this));
         LinearLayout.LayoutParams addParams = new LinearLayout.LayoutParams(
-                ViewUtils.dp(this, 88), ViewUtils.dp(this, 44));
+                ViewUtils.dp(this, 76), ViewUtils.dp(this, 52));
         addParams.setMargins(ViewUtils.dp(this, 8), 0, 0, 0);
-        actions.addView(add, addParams);
-        panel.addView(actions);
+        firstRow.addView(add, addParams);
+        panel.addView(firstRow);
 
-        View.OnClickListener submit = view -> addTask();
-        add.setOnClickListener(submit);
+        LinearLayout secondRow = new LinearLayout(this);
+        secondRow.setGravity(Gravity.CENTER_VERTICAL);
+        secondRow.setPadding(0, ViewUtils.dp(this, 5), 0, 0);
+        importantSwitch = createSwitch("重要");
+        urgentSwitch = createSwitch("紧急");
+        secondRow.addView(createSwitchGroup("重要", importantSwitch),
+                new LinearLayout.LayoutParams(ViewUtils.dp(this, 100), ViewUtils.dp(this, 48)));
+        secondRow.addView(createSwitchGroup("紧急", urgentSwitch),
+                new LinearLayout.LayoutParams(ViewUtils.dp(this, 100), ViewUtils.dp(this, 48)));
+
+        timeButton = new Button(this);
+        timeButton.setAllCaps(false);
+        timeButton.setTextSize(13);
+        timeButton.setTextColor(ThemePalette.TEXT_SECONDARY);
+        timeButton.setPadding(ViewUtils.dp(this, 6), 0, ViewUtils.dp(this, 6), 0);
+        timeButton.setBackground(ViewUtils.roundedWithStroke(
+                0xBFFFFFFF, 0xCFFFFFFF, 1f, 12, this));
+        updateDraftTimeButton();
+        timeButton.setOnClickListener(view -> TaskEditorDialog.pickDateTime(
+                this, draftDueAt, this::updateDraftTimeButton));
+        timeButton.setOnLongClickListener(view -> {
+            draftDueAt[0] = 0L;
+            updateDraftTimeButton();
+            Toast.makeText(this, "已清除时间", Toast.LENGTH_SHORT).show();
+            return true;
+        });
+        LinearLayout.LayoutParams timeParams = new LinearLayout.LayoutParams(
+                0, ViewUtils.dp(this, 42), 1);
+        timeParams.setMargins(ViewUtils.dp(this, 4), 0, 0, 0);
+        secondRow.addView(timeButton, timeParams);
+        panel.addView(secondRow);
+
+        add.setOnClickListener(view -> addTaskFromControls());
         input.setOnEditorActionListener((view, actionId, event) -> {
             if (actionId == EditorInfo.IME_ACTION_DONE) {
-                addTask();
+                addTaskFromControls();
                 return true;
             }
             return false;
@@ -164,92 +238,99 @@ public class MainActivity extends Activity {
         return panel;
     }
 
-    private Spinner createQuadrantSpinner() {
-        Spinner spinner = new Spinner(this);
-        ArrayAdapter<String> adapter = new ArrayAdapter<>(this,
-                android.R.layout.simple_spinner_item, TITLES);
-        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
-        spinner.setAdapter(adapter);
-        return spinner;
+    private SilverToggleSwitch createSwitch(String description) {
+        SilverToggleSwitch toggle = new SilverToggleSwitch(this);
+        toggle.setContentDescription(description);
+        return toggle;
+    }
+
+    private View createSwitchGroup(String label, SilverToggleSwitch toggle) {
+        LinearLayout group = new LinearLayout(this);
+        group.setGravity(Gravity.CENTER_VERTICAL);
+        TextView text = text(label, 14, ThemePalette.TEXT, false);
+        group.addView(text, new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT));
+        group.addView(toggle, new LinearLayout.LayoutParams(
+                ViewUtils.dp(this, 64), ViewUtils.dp(this, 46)));
+        return group;
     }
 
     private View createQuadrantCard(int quadrant) {
         FrameLayout card = new FrameLayout(this);
-        int tint = blendWithWhite(COLORS[quadrant], 0.91f);
-        card.setBackground(ViewUtils.roundedWithStroke(tint,
-                ViewUtils.withAlpha(COLORS[quadrant], 95), 14, this));
         card.setTag(quadrant);
+        card.setClipToOutline(true);
+        card.setBackground(ViewUtils.roundedWithStroke(
+                ViewUtils.withAlpha(COLORS[quadrant], 91),
+                0xD9FFFFFF, 1.2f, 16, this));
+        card.setElevation(ViewUtils.dp(this, 2));
 
-        TextView watermark = text(TITLES[quadrant], 31,
-                ViewUtils.withAlpha(COLORS[quadrant], 35), true);
+        TextView watermark = text(TITLES[quadrant], 33,
+                ViewUtils.withAlpha(COLORS[quadrant], 118), false);
         watermark.setGravity(Gravity.CENTER);
-        watermark.setRotation(-12f);
-        card.addView(watermark, new FrameLayout.LayoutParams(
-                FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT));
-
-        LinearLayout foreground = new LinearLayout(this);
-        foreground.setOrientation(LinearLayout.VERTICAL);
-
-        LinearLayout header = new LinearLayout(this);
-        header.setGravity(Gravity.CENTER_VERTICAL);
-        header.setPadding(ViewUtils.dp(this, 10), ViewUtils.dp(this, 9),
-                ViewUtils.dp(this, 8), ViewUtils.dp(this, 9));
-        header.setBackground(ViewUtils.rounded(COLORS[quadrant], 14, this));
-
-        LinearLayout labels = new LinearLayout(this);
-        labels.setOrientation(LinearLayout.VERTICAL);
-        TextView heading = text(TITLES[quadrant], 16, Color.WHITE, true);
-        labels.addView(heading);
-        TextView description = text(DESCRIPTIONS[quadrant], 10, 0xE6FFFFFF, false);
-        labels.addView(description);
-        header.addView(labels, new LinearLayout.LayoutParams(0,
-                LinearLayout.LayoutParams.WRAP_CONTENT, 1));
-
-        TextView badge = text("0", 12, Color.WHITE, true);
-        badge.setGravity(Gravity.CENTER);
-        badge.setBackground(ViewUtils.rounded(0x33FFFFFF, 12, this));
-        badge.setMinWidth(ViewUtils.dp(this, 28));
-        badge.setPadding(ViewUtils.dp(this, 7), ViewUtils.dp(this, 3),
-                ViewUtils.dp(this, 7), ViewUtils.dp(this, 3));
-        countBadges[quadrant] = badge;
-        header.addView(badge);
-        foreground.addView(header, new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
-
-        ScrollView taskScroll = new ScrollView(this);
-        taskScroll.setFillViewport(true);
-        taskScroll.setVerticalScrollBarEnabled(false);
+        Typeface handwriting = getResources().getFont(R.font.lxgw_wenkai_lite_regular);
+        watermark.setTypeface(handwriting);
+        FrameLayout.LayoutParams watermarkParams = new FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT, ViewUtils.dp(this, 72),
+                Gravity.BOTTOM | Gravity.CENTER_HORIZONTAL);
+        watermarkParams.setMargins(ViewUtils.dp(this, 8), 0,
+                ViewUtils.dp(this, 8), ViewUtils.dp(this, 12));
+        card.addView(watermark, watermarkParams);
 
         LinearLayout list = new LinearLayout(this);
         list.setOrientation(LinearLayout.VERTICAL);
-        list.setPadding(ViewUtils.dp(this, 6), ViewUtils.dp(this, 7),
-                ViewUtils.dp(this, 6), ViewUtils.dp(this, 6));
+        list.setPadding(ViewUtils.dp(this, 7), ViewUtils.dp(this, 34),
+                ViewUtils.dp(this, 7), ViewUtils.dp(this, 7));
         taskLists[quadrant] = list;
-        taskScroll.addView(list, new ScrollView.LayoutParams(
-                ScrollView.LayoutParams.MATCH_PARENT, ScrollView.LayoutParams.MATCH_PARENT));
-        foreground.addView(taskScroll, new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT, 0, 1));
-        card.addView(foreground, new FrameLayout.LayoutParams(
+        card.addView(list, new FrameLayout.LayoutParams(
                 FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT));
+
+        TextView count = text("0", 15, ThemePalette.TEXT, true);
+        count.setGravity(Gravity.CENTER);
+        count.setContentDescription("查看全部待办");
+        count.setBackground(ViewUtils.rounded(0x52FFFFFF, 11, this));
+        count.setMinWidth(ViewUtils.dp(this, 34));
+        count.setPadding(ViewUtils.dp(this, 8), ViewUtils.dp(this, 3),
+                ViewUtils.dp(this, 8), ViewUtils.dp(this, 3));
+        count.setOnClickListener(view -> openDetails(quadrant));
+        countBadges[quadrant] = count;
+        FrameLayout.LayoutParams countParams = new FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.WRAP_CONTENT, ViewUtils.dp(this, 30),
+                Gravity.TOP | Gravity.END);
+        countParams.setMargins(0, ViewUtils.dp(this, 4), ViewUtils.dp(this, 5), 0);
+        card.addView(count, countParams);
 
         card.setOnDragListener((view, event) -> handleDrop(card, event));
         return card;
     }
 
     private boolean handleDrop(FrameLayout card, DragEvent event) {
-        if (!event.getClipDescription().hasMimeType(ClipDescription.MIMETYPE_TEXT_PLAIN)) return false;
+        ClipDescription description = event.getClipDescription();
+        if (description == null || !description.hasMimeType(ClipDescription.MIMETYPE_TEXT_PLAIN)) {
+            return false;
+        }
         switch (event.getAction()) {
             case DragEvent.ACTION_DRAG_ENTERED:
                 card.setAlpha(0.72f);
+                card.setScaleX(1.02f);
+                card.setScaleY(1.02f);
                 return true;
             case DragEvent.ACTION_DRAG_EXITED:
             case DragEvent.ACTION_DRAG_ENDED:
-                card.setAlpha(1f);
+                resetCardState(card);
                 return true;
             case DragEvent.ACTION_DROP:
-                long id = Long.parseLong(event.getClipData().getItemAt(0).getText().toString());
-                store.move(id, (int) card.getTag());
-                card.setAlpha(1f);
+                int quadrant = (int) card.getTag();
+                String label = String.valueOf(description.getLabel());
+                String value = event.getClipData().getItemAt(0).getText().toString();
+                if ("draft".equals(label)) {
+                    store.add(value, quadrant, draftDueAt[0]);
+                    input.setText("");
+                    draftDueAt[0] = 0L;
+                    updateDraftTimeButton();
+                } else if ("task-id".equals(label)) {
+                    store.move(Long.parseLong(value), quadrant);
+                }
+                resetCardState(card);
                 renderTasks();
                 return true;
             default:
@@ -257,49 +338,80 @@ public class MainActivity extends Activity {
         }
     }
 
-    private void addTask() {
-        String text = input.getText().toString().trim();
-        if (text.isEmpty()) {
+    private void resetCardState(FrameLayout card) {
+        card.setAlpha(1f);
+        card.setScaleX(1f);
+        card.setScaleY(1f);
+    }
+
+    private boolean startDraftDrag(View source) {
+        String value = input.getText().toString().trim();
+        if (value.isEmpty()) {
+            input.requestFocus();
+            input.setError("先输入待办内容");
+            return true;
+        }
+        ClipData data = ClipData.newPlainText("draft", value);
+        source.startDragAndDrop(data, new View.DragShadowBuilder(source), null, 0);
+        return true;
+    }
+
+    private void addTaskFromControls() {
+        String value = input.getText().toString().trim();
+        if (value.isEmpty()) {
             input.setError("请输入待办内容");
             return;
         }
-        store.add(text, quadrantSpinner.getSelectedItemPosition());
+        int quadrant = ThemePalette.quadrantFor(
+                importantSwitch.isChecked(), urgentSwitch.isChecked());
+        store.add(value, quadrant, draftDueAt[0]);
         input.setText("");
+        draftDueAt[0] = 0L;
+        updateDraftTimeButton();
         renderTasks();
-        Toast.makeText(this, "已添加", Toast.LENGTH_SHORT).show();
+        Toast.makeText(this, "已添加到“" + TITLES[quadrant] + "”", Toast.LENGTH_SHORT).show();
+    }
+
+    private void updateDraftTimeButton() {
+        timeButton.setText(draftDueAt[0] > 0L
+                ? "◷ " + ViewUtils.formatDueTime(draftDueAt[0])
+                : "◷ 时间（可选）");
     }
 
     private void renderTasks() {
         for (LinearLayout taskList : taskLists) taskList.removeAllViews();
         List<Task> tasks = store.all();
         int[] counts = new int[4];
-        int completed = 0;
+        int[] visible = new int[4];
         for (Task task : tasks) {
             counts[task.quadrant]++;
-            if (task.done) completed++;
-            taskLists[task.quadrant].addView(createTaskRow(task));
+            if (visible[task.quadrant] < MAX_VISIBLE_TASKS) {
+                taskLists[task.quadrant].addView(createTaskRow(task));
+                visible[task.quadrant]++;
+            }
         }
         for (int quadrant = 0; quadrant < 4; quadrant++) {
             countBadges[quadrant].setText(String.valueOf(counts[quadrant]));
-            if (counts[quadrant] == 0) {
-                TextView empty = text("暂无事项", 11, ViewUtils.withAlpha(COLORS[quadrant], 140), false);
-                empty.setGravity(Gravity.CENTER);
-                taskLists[quadrant].addView(empty, new LinearLayout.LayoutParams(
-                        LinearLayout.LayoutParams.MATCH_PARENT, 0, 1));
-            }
         }
-        summary.setText(getString(R.string.task_summary, tasks.size(), completed));
     }
 
     private View createTaskRow(Task task) {
         LinearLayout row = new LinearLayout(this);
         row.setGravity(Gravity.CENTER_VERTICAL);
-        row.setPadding(0, ViewUtils.dp(this, 3), 0, ViewUtils.dp(this, 3));
+        row.setPadding(ViewUtils.dp(this, 3), ViewUtils.dp(this, 2),
+                ViewUtils.dp(this, 2), ViewUtils.dp(this, 2));
+        row.setBackground(ViewUtils.roundedWithStroke(
+                0xCFFFFFFF, 0xA8FFFFFF, 1f, 12, this));
+        LinearLayout.LayoutParams rowParams = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                task.dueAt > 0L ? ViewUtils.dp(this, 50) : ViewUtils.dp(this, 43));
+        rowParams.setMargins(0, 0, 0, ViewUtils.dp(this, 5));
+        row.setLayoutParams(rowParams);
 
         CheckBox check = new CheckBox(this);
         check.setButtonTintList(new ColorStateList(
                 new int[][] {new int[] {android.R.attr.state_checked}, new int[] {}},
-                new int[] {COLORS[task.quadrant], Color.rgb(150, 158, 166)}));
+                new int[] {ThemePalette.ACCENT, Color.rgb(122, 135, 146)}));
         check.setChecked(task.done);
         check.setContentDescription(task.done ? "标记为未完成" : "标记为已完成");
         check.setOnClickListener(view -> {
@@ -307,26 +419,38 @@ public class MainActivity extends Activity {
             renderTasks();
         });
         row.addView(check, new LinearLayout.LayoutParams(
-                ViewUtils.dp(this, 38), ViewUtils.dp(this, 42)));
+                ViewUtils.dp(this, 38), ViewUtils.dp(this, 40)));
 
-        TextView taskText = text(task.text, 13,
-                task.done ? Color.rgb(145, 153, 160) : Color.rgb(43, 55, 66), false);
-        taskText.setMaxLines(3);
+        LinearLayout labels = new LinearLayout(this);
+        labels.setOrientation(LinearLayout.VERTICAL);
+        labels.setGravity(Gravity.CENTER_VERTICAL);
+        TextView taskText = text(task.text, 13, task.done ? 0x96616C76 : ThemePalette.TEXT, true);
+        taskText.setMaxLines(2);
         if (task.done) taskText.setPaintFlags(taskText.getPaintFlags() | Paint.STRIKE_THRU_TEXT_FLAG);
-        row.addView(taskText, new LinearLayout.LayoutParams(0,
-                LinearLayout.LayoutParams.WRAP_CONTENT, 1));
+        labels.addView(taskText);
+        if (task.dueAt > 0L) {
+            TextView time = text("◷ " + ViewUtils.formatDueTime(task.dueAt), 10,
+                    ThemePalette.TEXT_SECONDARY, false);
+            labels.addView(time);
+        }
+        row.addView(labels, new LinearLayout.LayoutParams(0,
+                LinearLayout.LayoutParams.MATCH_PARENT, 1));
 
         Button more = new Button(this);
-        more.setText("⋮");
+        more.setText("⋯");
         more.setTextSize(18);
+        more.setTextColor(ThemePalette.TEXT_SECONDARY);
         more.setContentDescription("更多操作");
         more.setMinWidth(0);
         more.setMinimumWidth(0);
         more.setPadding(0, 0, 0, 0);
+        more.setBackgroundColor(Color.TRANSPARENT);
         more.setOnClickListener(view -> showTaskMenu(more, task));
         row.addView(more, new LinearLayout.LayoutParams(
                 ViewUtils.dp(this, 32), ViewUtils.dp(this, 40)));
 
+        row.setOnClickListener(view -> TaskEditorDialog.show(
+                this, store, store.find(task.id), task.quadrant, this::renderTasks));
         row.setOnLongClickListener(view -> {
             ClipData data = ClipData.newPlainText("task-id", String.valueOf(task.id));
             view.startDragAndDrop(data, new View.DragShadowBuilder(view), null, 0);
@@ -337,17 +461,31 @@ public class MainActivity extends Activity {
 
     private void showTaskMenu(View anchor, Task task) {
         PopupMenu menu = new PopupMenu(this, anchor);
+        menu.getMenu().add(1, 100, 0, "编辑");
         for (int index = 0; index < TITLES.length; index++) {
-            menu.getMenu().add(0, index, index, "移至“" + TITLES[index] + "”");
+            menu.getMenu().add(0, index, index + 1, "移至“" + TITLES[index] + "”");
         }
-        menu.getMenu().add(1, 100, 5, "删除");
+        menu.getMenu().add(1, 101, 6, "删除");
         menu.setOnMenuItemClickListener(item -> {
-            if (item.getGroupId() == 1) store.delete(task.id);
-            else store.move(task.id, item.getItemId());
-            renderTasks();
+            if (item.getGroupId() == 0) {
+                store.move(task.id, item.getItemId());
+                renderTasks();
+            } else if (item.getItemId() == 100) {
+                TaskEditorDialog.show(this, store, store.find(task.id), task.quadrant,
+                        this::renderTasks);
+            } else {
+                store.delete(task.id);
+                renderTasks();
+            }
             return true;
         });
         menu.show();
+    }
+
+    private void openDetails(int quadrant) {
+        Intent intent = new Intent(this, QuadrantDetailActivity.class);
+        intent.putExtra(QuadrantDetailActivity.EXTRA_QUADRANT, quadrant);
+        startActivity(intent);
     }
 
     private TextView text(String value, float size, int color, boolean bold) {
@@ -355,26 +493,7 @@ public class MainActivity extends Activity {
         textView.setText(value);
         textView.setTextSize(size);
         textView.setTextColor(color);
-        if (bold) textView.setTypeface(textView.getTypeface(), android.graphics.Typeface.BOLD);
+        if (bold) textView.setTypeface(textView.getTypeface(), Typeface.BOLD);
         return textView;
-    }
-
-    private LinearLayout.LayoutParams wrap() {
-        return new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT);
-    }
-
-    private LinearLayout.LayoutParams matchWrapWithBottom(int bottomDp) {
-        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
-        params.setMargins(0, 0, 0, ViewUtils.dp(this, bottomDp));
-        return params;
-    }
-
-    private int blendWithWhite(int color, float whiteRatio) {
-        int red = Math.round(Color.red(color) * (1 - whiteRatio) + 255 * whiteRatio);
-        int green = Math.round(Color.green(color) * (1 - whiteRatio) + 255 * whiteRatio);
-        int blue = Math.round(Color.blue(color) * (1 - whiteRatio) + 255 * whiteRatio);
-        return Color.rgb(red, green, blue);
     }
 }
