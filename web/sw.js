@@ -1,4 +1,4 @@
-const CACHE = 'remindergray-web-v1';
+const CACHE = 'remindergray-web-v2';
 const ASSETS = [
   './', './index.html', './styles.css', './app.js', './manifest.webmanifest',
   './assets/background.png', './assets/icon.png', './assets/switch-on.png',

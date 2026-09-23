@@ -126,8 +126,13 @@
     $('timeButton').textContent = dueInput.value ? `◷ ${prettyDue(dueInput.value)}` : '◷ 时间（可选）';
   }
   function findTask(id) { return tasks.find(task => task.id === id); }
+  function setDeleteConfirm(visible) {
+    $('deleteConfirm').hidden = !visible;
+    $('editorActions').hidden = visible;
+  }
   function openEditor(task = null, quadrant = activeQuadrant) {
     editingId = task?.id || null;
+    setDeleteConfirm(false);
     $('editorHeading').textContent = task ? '编辑待办' : '新增待办';
     $('editText').value = task?.text || '';
     const q = task?.quadrant ?? quadrant ?? 3;
@@ -166,8 +171,14 @@
   $('backButton').addEventListener('click', () => { location.hash = ''; });
   $('detailAdd').addEventListener('click', () => openEditor());
   $('cancelButton').addEventListener('click', () => editor.close());
+  editor.addEventListener('close', () => setDeleteConfirm(false));
+  editor.addEventListener('cancel', event => {
+    if ($('deleteConfirm').hidden) return;
+    event.preventDefault(); setDeleteConfirm(false); $('deleteButton').focus();
+  });
   $('editorForm').addEventListener('submit', event => {
     event.preventDefault();
+    if (!$('deleteConfirm').hidden) return;
     const text = $('editText').value.trim();
     if (!text) return;
     const quadrant = quadrantFor(pressed($('editImportant')), pressed($('editUrgent')));
@@ -177,7 +188,14 @@
     editor.close();
   });
   $('deleteButton').addEventListener('click', () => {
-    if (!editingId || !confirm('确定删除这条待办吗？')) return;
+    if (!editingId) return;
+    setDeleteConfirm(true); $('confirmDeleteButton').focus();
+  });
+  $('keepTaskButton').addEventListener('click', () => {
+    setDeleteConfirm(false); $('deleteButton').focus();
+  });
+  $('confirmDeleteButton').addEventListener('click', () => {
+    if (!editingId) return;
     tasks = tasks.filter(task => task.id !== editingId);
     save(); render(); editor.close();
   });
