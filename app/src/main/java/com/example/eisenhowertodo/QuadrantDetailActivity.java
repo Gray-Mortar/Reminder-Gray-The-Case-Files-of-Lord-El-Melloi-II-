@@ -60,11 +60,14 @@ public class QuadrantDetailActivity extends Activity {
 
         LinearLayout page = new LinearLayout(this);
         page.setOrientation(LinearLayout.VERTICAL);
-        page.setPadding(ViewUtils.dp(this, 14), ViewUtils.dp(this, 22),
+        final int baseTopPadding = ViewUtils.dp(this, 22);
+        final int minimumTopClearance = ViewUtils.dp(this, 24);
+        page.setPadding(ViewUtils.dp(this, 14), baseTopPadding + minimumTopClearance,
                 ViewUtils.dp(this, 14), ViewUtils.dp(this, 18));
         final int baseBottomPadding = ViewUtils.dp(this, 18);
         page.setOnApplyWindowInsetsListener((view, insets) -> {
-            view.setPadding(view.getPaddingLeft(), view.getPaddingTop(),
+            int topClearance = Math.max(insets.getSystemWindowInsetTop(), minimumTopClearance);
+            view.setPadding(view.getPaddingLeft(), baseTopPadding + topClearance,
                     view.getPaddingRight(), baseBottomPadding + insets.getSystemWindowInsetBottom());
             return insets;
         });

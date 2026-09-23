@@ -251,7 +251,7 @@ public class MainActivity extends Activity {
         group.addView(text, new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT));
         group.addView(toggle, new LinearLayout.LayoutParams(
-                ViewUtils.dp(this, 64), ViewUtils.dp(this, 46)));
+                ViewUtils.dp(this, 68), ViewUtils.dp(this, 46)));
         return group;
     }
 

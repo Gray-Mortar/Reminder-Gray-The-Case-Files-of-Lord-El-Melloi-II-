@@ -164,7 +164,7 @@ final class TaskEditorDialog {
         group.addView(text, new LinearLayout.LayoutParams(0,
                 LinearLayout.LayoutParams.WRAP_CONTENT, 1));
         group.addView(toggle, new LinearLayout.LayoutParams(
-                ViewUtils.dp(activity, 66), ViewUtils.dp(activity, 48)));
+                ViewUtils.dp(activity, 68), ViewUtils.dp(activity, 48)));
         return group;
     }
 

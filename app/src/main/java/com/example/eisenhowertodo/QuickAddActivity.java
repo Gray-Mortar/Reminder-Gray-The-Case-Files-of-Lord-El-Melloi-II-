@@ -120,7 +120,7 @@ public class QuickAddActivity extends Activity {
         group.setGravity(Gravity.CENTER_VERTICAL);
         group.addView(text(label, 14, ThemePalette.TEXT, false));
         group.addView(toggle, new LinearLayout.LayoutParams(
-                ViewUtils.dp(this, 64), ViewUtils.dp(this, 46)));
+                ViewUtils.dp(this, 68), ViewUtils.dp(this, 46)));
         return group;
     }
 

@@ -1,20 +1,21 @@
 package com.example.eisenhowertodo;
 
 import android.content.Context;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
-import android.graphics.LinearGradient;
 import android.graphics.Paint;
-import android.graphics.RadialGradient;
 import android.graphics.RectF;
-import android.graphics.Shader;
 import android.util.AttributeSet;
 import android.view.View;
 import android.view.accessibility.AccessibilityEvent;
 import android.view.accessibility.AccessibilityNodeInfo;
 
-/** A device-independent silver/teal switch matching the approved design. */
+/** Displays the approved switch artwork directly, without redrawing its finish. */
 final class SilverToggleSwitch extends View {
-    private final Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
+    private static Bitmap onArtwork;
+    private static Bitmap offArtwork;
+    private final Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG | Paint.FILTER_BITMAP_FLAG);
     private boolean checked;
 
     SilverToggleSwitch(Context context) {
@@ -50,50 +51,33 @@ final class SilverToggleSwitch extends View {
 
     @Override
     protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
-        int desiredWidth = ViewUtils.dp(getContext(), 64);
-        int desiredHeight = ViewUtils.dp(getContext(), 38);
+        int desiredWidth = ViewUtils.dp(getContext(), 68);
+        int desiredHeight = ViewUtils.dp(getContext(), 42);
         setMeasuredDimension(resolveSize(desiredWidth, widthMeasureSpec),
                 resolveSize(desiredHeight, heightMeasureSpec));
+    }
+
+    private static synchronized Bitmap artwork(Context context, boolean checked) {
+        if (onArtwork == null) {
+            BitmapFactory.Options options = new BitmapFactory.Options();
+            options.inScaled = false;
+            onArtwork = BitmapFactory.decodeResource(context.getResources(),
+                    R.drawable.switch_on_reference, options);
+            offArtwork = BitmapFactory.decodeResource(context.getResources(),
+                    R.drawable.switch_off_reference, options);
+        }
+        return checked ? onArtwork : offArtwork;
     }
 
     @Override
     protected void onDraw(Canvas canvas) {
         super.onDraw(canvas);
-        float density = getResources().getDisplayMetrics().density;
-        float outerInset = 1f * density;
-        float outerHeight = 37f * density;
-        float outerTop = (getHeight() - outerHeight) / 2f;
-        RectF outer = new RectF(outerInset, outerTop,
-                getWidth() - outerInset, outerTop + outerHeight);
-        paint.setStyle(Paint.Style.FILL);
-        paint.setShader(new LinearGradient(0, outer.top, 0, outer.bottom,
-                0xFFFAFBFC, 0xFFE1E4E6, Shader.TileMode.CLAMP));
-        canvas.drawRoundRect(outer, outerHeight / 2f, outerHeight / 2f, paint);
-
-        float innerInset = 5f * density;
-        float trackHeight = 30f * density;
-        float top = (getHeight() - trackHeight) / 2f;
-        RectF track = new RectF(innerInset, top,
-                getWidth() - innerInset, top + trackHeight);
-        int trackStart = checked ? 0xFF31BDB5 : 0xFFD8DBDE;
-        int trackEnd = checked ? 0xFF20A79F : 0xFFBFC4C8;
-        paint.setShader(new LinearGradient(track.left, track.top, track.right, track.bottom,
-                trackStart, trackEnd, Shader.TileMode.CLAMP));
-        canvas.drawRoundRect(track, trackHeight / 2f, trackHeight / 2f, paint);
-
-        float radius = 14f * density;
-        float centerX = checked ? track.right - trackHeight / 2f : track.left + trackHeight / 2f;
-        paint.setShader(new RadialGradient(centerX - 4f * density,
-                track.centerY() - 4f * density, radius * 1.5f,
-                new int[] {0xFFFFFFFF, 0xFFF0F2F3, 0xFFCDD1D4},
-                new float[] {0f, 0.62f, 1f}, Shader.TileMode.CLAMP));
-        canvas.drawCircle(centerX, track.centerY(), radius, paint);
-        paint.setShader(null);
-        paint.setStyle(Paint.Style.STROKE);
-        paint.setStrokeWidth(0.8f * density);
-        paint.setColor(0xFFB9BEC2);
-        canvas.drawCircle(centerX, track.centerY(), radius, paint);
-        paint.setStyle(Paint.Style.FILL);
+        Bitmap image = artwork(getContext(), checked);
+        float width = Math.min(getWidth(), getHeight() * image.getWidth() / (float) image.getHeight());
+        float height = width * image.getHeight() / image.getWidth();
+        float left = (getWidth() - width) / 2f;
+        float top = (getHeight() - height) / 2f;
+        canvas.drawBitmap(image, null, new RectF(left, top, left + width, top + height), paint);
     }
 
     @Override
