@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#f4f6f7">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="ReminderGray">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="apple-touch-icon" href="assets/icon.png">
+  <link rel="icon" type="image/png" href="assets/icon.png">
+  <link rel="stylesheet" href="styles.css">
+  <title>ReminderGray</title>
+  <script src="app.js" defer></script>
+</head>
+<body>
+  <div class="app-shell">
+    <div class="backdrop" aria-hidden="true"></div>
+    <main class="content" id="homeView">
+      <div class="portrait-space" aria-hidden="true"></div>
+      <section class="composer glass" aria-label="添加待办">
+        <div class="composer-main">
+          <span id="draftHandle" class="draft-handle" draggable="true" role="button" tabindex="0" aria-label="拖动输入内容到象限">⠿</span>
+          <input id="taskInput" type="text" maxlength="200" placeholder="输入新的待办事项" aria-label="输入新的待办事项">
+          <button id="addButton" class="primary" type="button">添加</button>
+        </div>
+        <div class="composer-options">
+          <label class="toggle-group">重要 <button id="importantToggle" class="switch" type="button" aria-label="重要" aria-pressed="false"></button></label>
+          <label class="toggle-group">紧急 <button id="urgentToggle" class="switch" type="button" aria-label="紧急" aria-pressed="false"></button></label>
+          <button id="timeButton" class="time-button" type="button">◷ 时间（可选）</button>
+        </div>
+        <div id="timePanel" class="time-panel" hidden>
+          <input id="dueInput" type="datetime-local" aria-label="待办时间">
+          <button id="clearTime" type="button">清除时间</button>
+        </div>
+      </section>
+      <section class="matrix" aria-label="四象限待办矩阵">
+        <div class="quadrant q0" data-quadrant="0"><button class="count" data-open="0" aria-label="查看立即做全部待办">0</button><div class="preview"></div><span class="watermark">立即做</span></div>
+        <div class="quadrant q1" data-quadrant="1"><button class="count" data-open="1" aria-label="查看安排做全部待办">0</button><div class="preview"></div><span class="watermark">安排做</span></div>
+        <div class="quadrant q2" data-quadrant="2"><button class="count" data-open="2" aria-label="查看委托做全部待办">0</button><div class="preview"></div><span class="watermark">委托做</span></div>
+        <div class="quadrant q3" data-quadrant="3"><button class="count" data-open="3" aria-label="查看尽量不做全部待办">0</button><div class="preview"></div><span class="watermark">尽量不做</span></div>
+      </section>
+    </main>
+    <main class="detail" id="detailView" hidden>
+      <header class="detail-header glass">
+        <button id="backButton" class="back" type="button" aria-label="返回">‹</button>
+        <div class="detail-heading"><h1 id="detailTitle"></h1><p>长按拖动排序，越靠上越优先；点击可编辑</p></div>
+        <span id="detailCount" class="detail-count">0</span>
+      </header>
+      <div id="detailList" class="detail-list"></div>
+      <button id="detailAdd" class="primary detail-add" type="button">新增待办</button>
+    </main>
+  </div>
+
+  <dialog id="editor" class="editor">
+    <form id="editorForm" method="dialog">
+      <h2 id="editorHeading">编辑待办</h2>
+      <input id="editText" type="text" maxlength="200" required aria-label="待办内容">
+      <div class="editor-toggles">
+        <label class="toggle-group">重要 <button id="editImportant" class="switch" type="button" aria-label="重要" aria-pressed="false"></button></label>
+        <label class="toggle-group">紧急 <button id="editUrgent" class="switch" type="button" aria-label="紧急" aria-pressed="false"></button></label>
+      </div>
+      <label class="date-label">时间（可选）<input id="editDue" type="datetime-local"></label>
+      <div class="editor-actions">
+        <button id="deleteButton" class="danger" type="button">删除</button>
+        <button id="cancelButton" type="button">取消</button>
+        <button id="saveButton" class="primary" type="submit">保存</button>
+      </div>
+    </form>
+  </dialog>
+  <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+</body>
+</html>

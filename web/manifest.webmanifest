@@ -1,0 +1,14 @@
+{
+  "name": "ReminderGray",
+  "short_name": "ReminderGray",
+  "description": "本地四象限待办",
+  "lang": "zh-CN",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f4f6f7",
+  "theme_color": "#f4f6f7",
+  "icons": [
+    { "src": "assets/icon.png", "sizes": "1254x1254", "type": "image/png", "purpose": "any maskable" }
+  ]
+}
