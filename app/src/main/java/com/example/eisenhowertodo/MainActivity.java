@@ -1,7 +1,6 @@
 package com.example.eisenhowertodo;
 
 import android.app.Activity;
-import android.content.Context;
 import android.content.ClipData;
 import android.content.ClipDescription;
 import android.content.Intent;
@@ -17,7 +16,6 @@ import android.view.View;
 import android.view.Window;
 import android.view.WindowManager;
 import android.view.inputmethod.EditorInfo;
-import android.view.inputmethod.InputMethodManager;
 import android.widget.Button;
 import android.widget.CheckBox;
 import android.widget.EditText;
@@ -33,7 +31,6 @@ import android.widget.Toast;
 import java.util.List;
 
 public class MainActivity extends Activity {
-    static final String EXTRA_FOCUS_INPUT = "focus_input_from_widget";
     static final String[] TITLES = {"立即做", "安排做", "委托做", "尽量不做"};
     static final int[] COLORS = ThemePalette.QUADRANT;
     private static final int MAX_VISIBLE_TASKS = 4;
@@ -45,7 +42,6 @@ public class MainActivity extends Activity {
     private SilverToggleSwitch importantSwitch;
     private SilverToggleSwitch urgentSwitch;
     private Button timeButton;
-    private Button syncButton;
     private final long[] draftDueAt = {0L};
 
     @Override
@@ -55,25 +51,6 @@ public class MainActivity extends Activity {
         store = new TaskStore(this);
         setContentView(createContent());
         renderTasks();
-        focusInputIfRequested(getIntent());
-    }
-
-    @Override
-    protected void onNewIntent(Intent intent) {
-        super.onNewIntent(intent);
-        setIntent(intent);
-        focusInputIfRequested(intent);
-    }
-
-    private void focusInputIfRequested(Intent intent) {
-        if (intent == null || !intent.getBooleanExtra(EXTRA_FOCUS_INPUT, false) || input == null) return;
-        intent.removeExtra(EXTRA_FOCUS_INPUT);
-        input.requestFocus();
-        input.postDelayed(() -> {
-            InputMethodManager keyboard =
-                    (InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);
-            keyboard.showSoftInput(input, InputMethodManager.SHOW_IMPLICIT);
-        }, 180);
     }
 
     @Override
@@ -248,23 +225,6 @@ public class MainActivity extends Activity {
                 0, ViewUtils.dp(this, 42), 1);
         timeParams.setMargins(ViewUtils.dp(this, 4), 0, 0, 0);
         secondRow.addView(timeButton, timeParams);
-        syncButton = new Button(this);
-        syncButton.setText("☁");
-        syncButton.setTextSize(17);
-        syncButton.setTextColor(ThemePalette.TEXT_SECONDARY);
-        syncButton.setPadding(0, 0, 0, 0);
-        syncButton.setMinWidth(0);
-        syncButton.setMinimumWidth(0);
-        syncButton.setBackgroundColor(Color.TRANSPARENT);
-        syncButton.setContentDescription("点击配置并手动同步");
-        syncButton.setOnClickListener(view -> SyncManager.showSettings(this, (status, success) -> {
-            syncButton.setContentDescription(status + "，点击配置并手动同步");
-            syncButton.setText(success ? "☁" : "☁!");
-            if (success) renderTasks();
-            else Toast.makeText(this, status, Toast.LENGTH_LONG).show();
-        }));
-        secondRow.addView(syncButton, new LinearLayout.LayoutParams(
-                ViewUtils.dp(this, 34), ViewUtils.dp(this, 42)));
         panel.addView(secondRow);
 
         add.setOnClickListener(view -> addTaskFromControls());

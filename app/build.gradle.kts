@@ -10,8 +10,8 @@ android {
         applicationId = "com.example.eisenhowertodo"
         minSdk = 26
         targetSdk = 37
-        versionCode = 7
-        versionName = "1.3.0-beta1"
+        versionCode = 5
+        versionName = "1.1.0-beta4"
     }
 
     buildTypes {

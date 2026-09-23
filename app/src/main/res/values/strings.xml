@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">ReminderGray</string>
-    <string name="widget_name">ReminderGray · 四象限</string>
-    <string name="widget_description">查看四象限待办，点输入框或象限快速打开</string>
+    <string name="widget_name">ReminderGray · 快速添加</string>
+    <string name="widget_description">点一下立即输入新的待办事项</string>
     <string name="widget_plus">＋</string>
     <string name="quick_add">快速添加</string>
     <string name="task_summary">%1$d 项待办 · %2$d 项已完成</string>
