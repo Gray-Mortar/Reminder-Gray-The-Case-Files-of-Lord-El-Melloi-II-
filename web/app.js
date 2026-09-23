@@ -61,8 +61,9 @@
       const quadrant = Number(card.dataset.quadrant);
       const list = tasks.filter(task => task.quadrant === quadrant);
       card.querySelector('.count').textContent = String(list.length);
+      card.classList.toggle('preview-full', list.length >= 3);
       const preview = card.querySelector('.preview');
-      preview.replaceChildren(...list.slice(0, 4).map(task => taskCard(task, false)));
+      preview.replaceChildren(...list.slice(0, 3).map(task => taskCard(task, false)));
     });
     if (activeQuadrant !== null) renderDetail();
   }
