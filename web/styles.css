@@ -13,8 +13,8 @@ body{background:#f4f6f7}button,input{font:inherit}button{cursor:pointer}button:f
 @media(min-width:700px){.backdrop:before{content:"";position:absolute;inset:-30px;background:url(assets/background.png) center/cover no-repeat;filter:blur(26px);opacity:.5;-webkit-mask-image:linear-gradient(90deg,#000 0%,transparent 35%,transparent 65%,#000 100%);mask-image:linear-gradient(90deg,#000 0%,transparent 35%,transparent 65%,#000 100%)}}
 @media(min-width:480px) and (min-aspect-ratio:11/20){
   .app-shell{--portrait-width:clamp(120px,26vw,270px);max-width:none;padding-left:var(--portrait-width)}
-  .backdrop{background:#f4f6f7;opacity:1}
-  .backdrop:before{inset:-36px;background:url(assets/background.png) center/cover no-repeat;filter:blur(34px);opacity:.65;-webkit-mask-image:none;mask-image:none}
+  .backdrop{background:#dfe6eb;opacity:1}
+  .backdrop:before{inset:-36px;background:url(assets/background.png) center/cover no-repeat;filter:blur(34px);opacity:.65;mix-blend-mode:multiply;-webkit-mask-image:none;mask-image:none}
   .backdrop:after,.detail-mode .backdrop:after{inset:0 auto 0 0;width:var(--portrait-width);background:url(assets/background.png) 54% top/cover no-repeat;box-shadow:inset -15px 0 22px rgba(244,246,247,.28)}
   .detail-mode .backdrop:before{opacity:.34}
   .content{display:flex;flex-direction:column;justify-content:center;max-width:900px;min-height:100dvh;margin:auto;padding:16px 12px 20px}
@@ -27,6 +27,8 @@ body{background:#f4f6f7}button,input{font:inherit}button{cursor:pointer}button:f
 }
 @media(min-width:900px) and (min-aspect-ratio:11/20){
   .app-shell{--portrait-width:clamp(360px,40vw,600px)}
+  .backdrop{background:#f4f6f7}
+  .backdrop:before{mix-blend-mode:normal}
   .content{padding:clamp(28px,6vh,70px) clamp(18px,3vw,40px) 30px}
   .composer{margin-bottom:12px}
   .quadrant{height:clamp(205px,32dvh,340px)}
